@@ -11,7 +11,7 @@ const app = new Hono<AppEnv>();
 
 // CORS for web app
 app.use("/*", cors({
-  origin: ["http://localhost:3000", "https://agentdocs.dev"],
+  origin: ["http://localhost:3000", "https://agentdocs.dev", "https://agentdocs-web.onrender.com"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowHeaders: ["Content-Type", "X-Identity-Id", "X-Timestamp", "X-Signature"],
 }));
