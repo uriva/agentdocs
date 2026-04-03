@@ -40,7 +40,7 @@ import {
 import { toast } from "sonner";
 import { importIdentity } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 type Tab = "documents" | "tickets";
 
@@ -411,6 +411,11 @@ function AppShell() {
   const { user, signOut } = useAuth();
   const { identities, active, loading, switchTo, create, importExisting } =
     useIdentity();
+
+  const createWithUser = useCallback(
+    (name: string) => create(name, user!.id),
+    [create, user],
+  );
   const {
     documents,
     loading: docsLoading,
@@ -474,7 +479,7 @@ function AppShell() {
                 identities={identities}
                 active={active}
                 onSwitch={switchTo}
-                onCreate={create}
+                onCreate={createWithUser}
                 onImport={importExisting}
               />
             )}
@@ -496,7 +501,7 @@ function AppShell() {
         {loading ? (
           <LoadingSkeleton />
         ) : !active ? (
-          <OnboardingState onCreate={create} onImport={importExisting} />
+          <OnboardingState onCreate={createWithUser} onImport={importExisting} />
         ) : (
           <>
             {/* ── Tabs ───────────────────────────────────────────── */}

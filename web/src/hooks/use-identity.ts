@@ -31,7 +31,7 @@ interface UseIdentityReturn {
   /** Switch the active identity */
   switchTo: (id: string) => void;
   /** Create a new identity (generates keys, registers with API) */
-  create: (name: string) => Promise<StoredIdentity>;
+  create: (name: string, userId: string) => Promise<StoredIdentity>;
   /** Import an existing identity (already registered server-side) */
   importExisting: (data: {
     id: string;
@@ -70,7 +70,7 @@ export function useIdentity(): UseIdentityReturn {
   );
 
   const create = useCallback(
-    async (name: string): Promise<StoredIdentity> => {
+    async (name: string, userId: string): Promise<StoredIdentity> => {
       // 1. Generate key pair client-side
       const keyPair = await generateIdentityKeyPair();
 
@@ -83,8 +83,7 @@ export function useIdentity(): UseIdentityReturn {
           encryptionPublicKey: keyPair.encryption.publicKey,
           name,
           algorithmSuite: JSON.stringify(ALGORITHMS),
-          // TODO: pass real userId from InstantDB auth
-          userId: "anonymous",
+          userId,
         }),
       });
 
