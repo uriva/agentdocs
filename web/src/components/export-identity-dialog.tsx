@@ -88,7 +88,7 @@ export function ExportIdentityDialog({
         <div className="space-y-4 py-2">
           {/* Identity info */}
           <div className="flex items-center gap-3 rounded-lg bg-muted/50 border border-border px-3 py-2.5">
-            <span className="h-2 w-2 rounded-full bg-terminal/80 shrink-0" />
+            <span className="h-2 w-2 rounded-full bg-foreground/80 shrink-0" />
             <span className="text-sm font-medium truncate flex-1">
               {identity.name}
             </span>
@@ -156,7 +156,7 @@ export function ExportIdentityDialog({
                     onClick={() => handleCopy("link")}
                   >
                     {copied === "link" ? (
-                      <Check className="h-3 w-3 text-terminal" />
+                      <Check className="h-3 w-3 text-foreground" />
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
@@ -183,7 +183,7 @@ export function ExportIdentityDialog({
                     onClick={() => handleCopy("key")}
                   >
                     {copied === "key" ? (
-                      <Check className="h-3 w-3 text-terminal" />
+                      <Check className="h-3 w-3 text-foreground" />
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}

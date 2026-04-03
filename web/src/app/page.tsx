@@ -40,7 +40,32 @@ import {
 import { toast } from "sonner";
 import { importIdentity } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
+
+/* ── Scroll-triggered animation hook ─────────────────────────────── */
+
+function useInView(threshold = 0.15): [RefObject<HTMLElement | null>, boolean] {
+  const ref = useRef<HTMLElement | null>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return [ref, inView];
+}
 
 type Tab = "documents" | "tickets";
 
@@ -71,14 +96,19 @@ export default function Home() {
 /* ── Landing Page ──────────────────────────────────────────────────── */
 
 function LandingPage() {
+  const [featuresRef, featuresInView] = useInView(0.1);
+  const [stepsRef, stepsInView] = useInView(0.1);
+  const [cryptoRef, cryptoInView] = useInView(0.2);
+  const [ctaRef, ctaInView] = useInView(0.2);
+
   return (
     <div className="grain flex flex-col min-h-full">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm animate-fade-in">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-terminal/90 flex items-center justify-center">
+              <div className="h-5 w-5 rounded bg-foreground flex items-center justify-center">
                 <Lock className="h-3 w-3 text-background" />
               </div>
               <span className="text-sm font-semibold tracking-tight">
@@ -97,24 +127,24 @@ function LandingPage() {
       <main className="flex-1">
         <section className="mx-auto max-w-4xl px-6 pt-24 pb-20">
           <div className="max-w-2xl space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-terminal animate-pulse" />
+            <div className="animate-fade-up delay-0 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />
               API-first &middot; End-to-end encrypted
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
+            <h1 className="animate-fade-up delay-1 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
               Google Docs,
               <br />
               but for agents
             </h1>
 
-            <p className="text-lg text-muted-foreground leading-relaxed max-w-lg">
+            <p className="animate-fade-up delay-2 text-lg text-muted-foreground leading-relaxed max-w-lg">
               Documents, spreadsheets, and tickets your AI agents can read and
               write through a simple API. Every byte is end-to-end encrypted
               &mdash; we literally cannot read your data.
             </p>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
               <SignInButton size="lg" />
               <a
                 href="https://github.com/uriva/agentdocs"
@@ -129,7 +159,7 @@ function LandingPage() {
           </div>
 
           {/* Code example */}
-          <div className="mt-16 rounded-lg border bg-card overflow-hidden">
+          <div className="animate-code-reveal delay-5 mt-16 rounded-lg border bg-card overflow-hidden">
             <div className="flex items-center gap-2 border-b px-4 py-2.5">
               <div className="flex gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20" />
@@ -144,7 +174,7 @@ function LandingPage() {
               <code>
                 <span className="text-muted-foreground"># Create a document with your agent&apos;s identity</span>
 {"\n"}
-                <span className="text-terminal">response</span>
+                <span className="text-foreground">response</span>
                 <span className="text-muted-foreground"> = </span>
                 requests.post(<span className="text-orange-400 dark:text-orange-300">&quot;/api/documents&quot;</span>, headers=signed_headers, json={"{"}
 {"\n"}
@@ -169,32 +199,44 @@ function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="border-t">
+        <section className="border-t" ref={featuresRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-20">
             <div className="grid sm:grid-cols-3 gap-10">
               <Feature
                 icon={Bot}
                 title="Built for agents"
                 description="Every operation is an API call. No browser needed. Sign requests with your agent's Ed25519 private key and go."
+                inView={featuresInView}
+                delay={0}
               />
               <Feature
                 icon={KeyRound}
                 title="Unlimited identities"
                 description="Create as many identities as you want for your army of bots. Each gets its own key pair. Share documents between them with ECDH key exchange."
+                inView={featuresInView}
+                delay={1}
               />
               <Feature
                 icon={EyeOff}
                 title="Zero-knowledge"
                 description="AES-256-GCM encryption happens client-side. We store ciphertext. No plaintext titles, no plaintext content, no plaintext comments. Ever."
+                inView={featuresInView}
+                delay={2}
               />
             </div>
           </div>
         </section>
 
         {/* How it works */}
-        <section className="border-t">
+        <section className="border-t" ref={stepsRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-20">
-            <h2 className="text-2xl font-semibold tracking-tight mb-10">
+            <h2
+              className={`text-2xl font-semibold tracking-tight mb-10 transition-all duration-500 ${
+                stepsInView
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }`}
+            >
               How it works
             </h2>
             <div className="grid sm:grid-cols-2 gap-x-16 gap-y-8">
@@ -202,30 +244,44 @@ function LandingPage() {
                 number="01"
                 title="Generate an identity"
                 description="An Ed25519 signing key + X25519 encryption key are generated in your browser. The private keys never leave your device."
+                inView={stepsInView}
+                delay={1}
               />
               <Step
                 number="02"
                 title="Create documents via API"
                 description="POST encrypted content to the API. Agents sign each request with their private key. We verify and store ciphertext."
+                inView={stepsInView}
+                delay={2}
               />
               <Step
                 number="03"
                 title="Share with key exchange"
                 description="Grant access by wrapping the document's AES key with ECDH. The recipient unwraps with their private key. We never see the plaintext key."
+                inView={stepsInView}
+                delay={3}
               />
               <Step
                 number="04"
                 title="Collaborate across identities"
                 description="Humans use the web app. Agents use the API. Same encrypted documents, same access model. Mix and match."
+                inView={stepsInView}
+                delay={4}
               />
             </div>
           </div>
         </section>
 
         {/* Crypto details */}
-        <section className="border-t">
+        <section className="border-t" ref={cryptoRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-16">
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] font-mono text-muted-foreground/60">
+            <div
+              className={`flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[11px] font-mono text-muted-foreground/60 transition-all duration-700 ${
+                cryptoInView
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }`}
+            >
               <span>Ed25519 signing</span>
               <span className="text-muted-foreground/20">|</span>
               <span>X25519 ECDH</span>
@@ -240,8 +296,14 @@ function LandingPage() {
         </section>
 
         {/* Final CTA */}
-        <section className="border-t">
-          <div className="mx-auto max-w-4xl px-6 py-20 text-center">
+        <section className="border-t" ref={ctaRef as React.RefObject<HTMLElement>}>
+          <div
+            className={`mx-auto max-w-4xl px-6 py-20 text-center transition-all duration-600 ${
+              ctaInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            }`}
+          >
             <h2 className="text-2xl font-semibold tracking-tight mb-3">
               Give your agents a workspace
             </h2>
@@ -261,15 +323,24 @@ function Feature({
   icon: Icon,
   title,
   description,
+  inView = true,
+  delay = 0,
 }: {
   icon: typeof Bot;
   title: string;
   description: string;
+  inView?: boolean;
+  delay?: number;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="h-9 w-9 rounded-lg bg-terminal/10 border border-terminal/20 flex items-center justify-center">
-        <Icon className="h-4 w-4 text-terminal" />
+    <div
+      className={`space-y-3 transition-all duration-500 ${
+        inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+      }`}
+      style={{ transitionDelay: `${delay * 150}ms` }}
+    >
+      <div className="h-9 w-9 rounded-lg bg-foreground/10 border border-foreground/20 flex items-center justify-center">
+        <Icon className="h-4 w-4 text-foreground" />
       </div>
       <h3 className="text-sm font-semibold">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">
@@ -283,14 +354,23 @@ function Step({
   number,
   title,
   description,
+  inView = true,
+  delay = 0,
 }: {
   number: string;
   title: string;
   description: string;
+  inView?: boolean;
+  delay?: number;
 }) {
   return (
-    <div className="flex gap-4">
-      <span className="text-[11px] font-mono text-terminal/60 pt-0.5 shrink-0">
+    <div
+      className={`flex gap-4 transition-all duration-500 ${
+        inView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-3"
+      }`}
+      style={{ transitionDelay: `${delay * 150}ms` }}
+    >
+      <span className="text-[11px] font-mono text-foreground/60 pt-0.5 shrink-0">
         {number}
       </span>
       <div className="space-y-1.5">
@@ -460,7 +540,7 @@ function AppShell() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-terminal/90 flex items-center justify-center">
+              <div className="h-5 w-5 rounded bg-foreground flex items-center justify-center">
                 <Lock className="h-3 w-3 text-background" />
               </div>
               <span className="text-sm font-semibold tracking-tight">
@@ -512,7 +592,7 @@ function AppShell() {
                     onClick={() => setTab("documents")}
                     className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium transition-colors border-b-2 -mb-px ${
                       tab === "documents"
-                        ? "border-terminal text-foreground"
+                        ? "border-foreground text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -528,7 +608,7 @@ function AppShell() {
                     onClick={() => setTab("tickets")}
                     className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium transition-colors border-b-2 -mb-px ${
                       tab === "tickets"
-                        ? "border-terminal text-foreground"
+                        ? "border-foreground text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -597,8 +677,8 @@ function OnboardingState({
     <div className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
       <div className="max-w-md w-full space-y-8 text-center">
         <div className="flex items-center justify-center gap-1">
-          <div className="h-12 w-12 rounded-lg bg-terminal/10 border border-terminal/20 flex items-center justify-center">
-            <Shield className="h-6 w-6 text-terminal" />
+          <div className="h-12 w-12 rounded-lg bg-foreground/10 border border-foreground/20 flex items-center justify-center">
+            <Shield className="h-6 w-6 text-foreground" />
           </div>
         </div>
 
@@ -814,7 +894,7 @@ function DocumentsView({
             </div>
             <div className="pt-2">
               <div className="inline-flex items-center gap-2 rounded-md bg-muted/40 border border-border px-3 py-2 text-[11px] font-mono text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-terminal/70" />
+                <span className="h-1.5 w-1.5 rounded-full bg-foreground/70" />
                 Signed in as{" "}
                 <span className="text-foreground/80">{active.name}</span>
               </div>
@@ -830,11 +910,11 @@ function DocumentsView({
                 onClick={() => openDoc(doc)}
                 className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50 group"
               >
-                <div className="h-8 w-8 rounded-md bg-muted/60 border border-border flex items-center justify-center shrink-0 group-hover:border-terminal/30 group-hover:bg-terminal/5 transition-colors">
+                <div className="h-8 w-8 rounded-md bg-muted/60 border border-border flex items-center justify-center shrink-0 group-hover:border-foreground/30 group-hover:bg-foreground/5 transition-colors">
                   {doc.type === "spreadsheet" ? (
-                    <Table2 className="h-4 w-4 text-muted-foreground/60 group-hover:text-terminal/70 transition-colors" />
+                    <Table2 className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
                   ) : (
-                    <FileText className="h-4 w-4 text-muted-foreground/60 group-hover:text-terminal/70 transition-colors" />
+                    <FileText className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -861,7 +941,7 @@ const STATUS_CONFIG: Record<
   string,
   { icon: typeof CircleDot; label: string; className: string }
 > = {
-  open: { icon: CircleDot, label: "Open", className: "text-terminal" },
+  open: { icon: CircleDot, label: "Open", className: "text-foreground" },
   in_progress: {
     icon: ArrowUpCircle,
     label: "In Progress",

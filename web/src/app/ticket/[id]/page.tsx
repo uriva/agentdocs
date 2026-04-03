@@ -58,7 +58,7 @@ function getTicketContext(ticketId: string): TicketContext | null {
 }
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string; icon: typeof CircleDot; className: string }[] = [
-  { value: "open", label: "Open", icon: CircleDot, className: "text-terminal" },
+  { value: "open", label: "Open", icon: CircleDot, className: "text-foreground" },
   { value: "in_progress", label: "In Progress", icon: ArrowUpCircle, className: "text-yellow-500" },
   { value: "closed", label: "Closed", icon: CheckCircle2, className: "text-muted-foreground/50" },
 ];
@@ -218,7 +218,7 @@ export default function TicketPage() {
                         onClick={() => handleStatusChange(opt.value)}
                         className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                           status === opt.value
-                            ? "border-terminal/40 bg-terminal/10"
+                            ? "border-foreground/40 bg-foreground/10"
                             : "border-border text-muted-foreground hover:bg-muted/50"
                         }`}
                       >
@@ -241,7 +241,7 @@ export default function TicketPage() {
                       onClick={() => handlePriorityChange(opt.value)}
                       className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                         priority === opt.value
-                          ? "border-terminal/40 bg-terminal/10 text-terminal"
+                          ? "border-foreground/40 bg-foreground/10 text-foreground"
                           : "border-border text-muted-foreground hover:bg-muted/50"
                       }`}
                     >
@@ -477,7 +477,7 @@ function ShareTicketDialog({
           )}
 
           {success && (
-            <div className="flex items-center gap-2 text-sm text-terminal">
+            <div className="flex items-center gap-2 text-sm text-foreground">
               <Check className="h-4 w-4 shrink-0" />
               <span>Access granted. The recipient can now decrypt this ticket.</span>
             </div>

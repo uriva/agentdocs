@@ -132,7 +132,7 @@ export function CreateTicketDialog({
                   onClick={() => setPriority(p.value)}
                   className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
                     priority === p.value
-                      ? "border-terminal/40 bg-terminal/10 text-terminal"
+                      ? "border-foreground/40 bg-foreground/10 text-foreground"
                       : "border-border text-muted-foreground hover:bg-muted/50"
                   }`}
                 >

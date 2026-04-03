@@ -151,7 +151,7 @@ export function ShareDialog({ documentId, docKey, identity }: ShareDialogProps) 
           )}
 
           {success && (
-            <div className="flex items-center gap-2 text-sm text-terminal">
+            <div className="flex items-center gap-2 text-sm text-foreground">
               <Check className="h-4 w-4 shrink-0" />
               <span>Access granted. The recipient can now decrypt this document.</span>
             </div>

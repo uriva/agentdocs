@@ -125,7 +125,7 @@ export function ImportIdentityDialog({
                     if (state.step === "error") setState({ step: "input" });
                   }}
                   placeholder="Paste export key or agentdocs share link..."
-                  className="w-full min-h-[80px] rounded-md bg-muted border border-border px-2.5 py-2 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-terminal/50 resize-none"
+                  className="w-full min-h-[80px] rounded-md bg-muted border border-border px-2.5 py-2 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring/50 resize-none"
                   autoFocus
                 />
               </div>
@@ -147,7 +147,7 @@ export function ImportIdentityDialog({
             <div className="space-y-3">
               <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-2">
                 <div className="flex items-center gap-3">
-                  <span className="h-2 w-2 rounded-full bg-terminal/80 shrink-0" />
+                  <span className="h-2 w-2 rounded-full bg-foreground/80 shrink-0" />
                   <span className="text-sm font-medium truncate flex-1">
                     {state.data.name}
                   </span>

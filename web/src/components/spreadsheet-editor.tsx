@@ -234,7 +234,7 @@ export function SpreadsheetEditor({ data, onChange }: SpreadsheetEditorProps) {
       {/* ── Formula bar ──────────────────────────────────────────── */}
       <div className="flex items-center border-b h-9 shrink-0">
         <div
-          className="flex items-center justify-center text-[10px] font-mono font-medium text-terminal/80 border-r bg-muted/30 shrink-0 h-full px-3 select-none"
+          className="flex items-center justify-center text-[10px] font-mono font-medium text-foreground/80 border-r bg-muted/30 shrink-0 h-full px-3 select-none"
           style={{ minWidth: 56 }}
         >
           {selectedRef}
@@ -293,7 +293,7 @@ export function SpreadsheetEditor({ data, onChange }: SpreadsheetEditorProps) {
                 key={col}
                 className={`bg-muted/60 border-b border-r flex items-center justify-center text-[10px] font-mono font-medium select-none shrink-0 transition-colors ${
                   col === selection.col
-                    ? "text-terminal bg-terminal/5"
+                    ? "text-foreground bg-foreground/5"
                     : "text-muted-foreground/60"
                 }`}
                 style={{ width: getColWidth(col), height: CELL_HEIGHT }}
@@ -310,7 +310,7 @@ export function SpreadsheetEditor({ data, onChange }: SpreadsheetEditorProps) {
               <div
                 className={`sticky left-0 z-10 bg-muted/60 border-b border-r flex items-center justify-center text-[10px] font-mono select-none shrink-0 transition-colors ${
                   row === selection.row
-                    ? "text-terminal bg-terminal/5"
+                    ? "text-foreground bg-foreground/5"
                     : "text-muted-foreground/60"
                 }`}
                 style={{
@@ -337,7 +337,7 @@ export function SpreadsheetEditor({ data, onChange }: SpreadsheetEditorProps) {
                     onDoubleClick={() => handleCellDoubleClick(col, row)}
                     className={`border-b border-r flex items-center shrink-0 relative transition-colors ${
                       isSelected
-                        ? "ring-2 ring-terminal/60 ring-inset z-10 bg-terminal/[0.03]"
+                        ? "ring-2 ring-foreground/60 ring-inset z-10 bg-foreground/[0.03]"
                         : "hover:bg-muted/20"
                     }`}
                     style={{ width: getColWidth(col), height: CELL_HEIGHT }}
@@ -349,7 +349,7 @@ export function SpreadsheetEditor({ data, onChange }: SpreadsheetEditorProps) {
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={commitEdit}
-                        className="absolute inset-0 w-full h-full bg-background px-2 text-xs font-mono outline-none ring-2 ring-terminal z-20"
+                        className="absolute inset-0 w-full h-full bg-background px-2 text-xs font-mono outline-none ring-2 ring-foreground z-20"
                         spellCheck={false}
                       />
                     ) : (

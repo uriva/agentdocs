@@ -83,7 +83,7 @@ export function IdentitySwitcher({
           }
         >
           <span
-            className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"
+            className="h-2 w-2 rounded-full bg-foreground shrink-0"
             aria-hidden
           />
           <span className="max-w-[120px] truncate">{active.name}</span>
@@ -108,7 +108,7 @@ export function IdentitySwitcher({
               <span
                 className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                   identity.id === active.id
-                    ? "bg-emerald-500"
+                    ? "bg-foreground"
                     : "bg-muted-foreground/30"
                 }`}
               />
