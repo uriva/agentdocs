@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,8 @@ export function IdentitySwitcher({
   onCreate,
   onImport,
 }: IdentitySwitcherProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   if (!active) {
     return (
       <div className="flex items-center gap-2">
@@ -58,6 +61,10 @@ export function IdentitySwitcher({
     );
   }
 
+  const fp = active.keyPair?.signing?.publicKey
+    ? fingerprint(active.keyPair.signing.publicKey)
+    : "???";
+
   return (
     <div className="flex items-center gap-2">
       <ExportIdentityDialog
@@ -72,13 +79,12 @@ export function IdentitySwitcher({
           </Button>
         }
       />
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
           render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-2 px-2.5 font-mono text-xs"
+            <button
+              type="button"
+              className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
             />
           }
         >
@@ -91,7 +97,7 @@ export function IdentitySwitcher({
             variant="secondary"
             className="font-mono text-[10px] px-1.5 py-0"
           >
-            {fingerprint(active.keyPair.signing.publicKey)}
+            {fp}
           </Badge>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -99,48 +105,59 @@ export function IdentitySwitcher({
             Identities
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {identities.map((identity) => (
-            <DropdownMenuItem
-              key={identity.id}
-              onClick={() => onSwitch(identity.id)}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                  identity.id === active.id
-                    ? "bg-foreground"
-                    : "bg-muted-foreground/30"
-                }`}
-              />
-              <span className="flex-1 truncate text-sm">{identity.name}</span>
-              <code className="text-[10px] font-mono text-muted-foreground">
-                {fingerprint(identity.keyPair.signing.publicKey)}
-              </code>
-            </DropdownMenuItem>
-          ))}
+          {identities.map((identity) => {
+            const idFp = identity.keyPair?.signing?.publicKey
+              ? fingerprint(identity.keyPair.signing.publicKey)
+              : "???";
+            return (
+              <DropdownMenuItem
+                key={identity.id}
+                onClick={() => onSwitch(identity.id)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                    identity.id === active.id
+                      ? "bg-foreground"
+                      : "bg-muted-foreground/30"
+                  }`}
+                />
+                <span className="flex-1 truncate text-sm">
+                  {identity.name}
+                </span>
+                <code className="text-[10px] font-mono text-muted-foreground">
+                  {idFp}
+                </code>
+              </DropdownMenuItem>
+            );
+          })}
           <DropdownMenuSeparator />
-          <ImportIdentityDialog
-            onImport={onImport}
-            trigger={
-              <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="cursor-pointer text-sm text-muted-foreground"
-              >
-                Import Identity
-              </DropdownMenuItem>
-            }
-          />
-          <CreateIdentityDialog
-            onCreateIdentity={onCreate}
-            trigger={
-              <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="cursor-pointer text-sm text-muted-foreground"
-              >
-                + New Identity
-              </DropdownMenuItem>
-            }
-          />
+          <DropdownMenuItem
+            onClick={() => setMenuOpen(false)}
+            className="cursor-pointer text-sm text-muted-foreground p-0"
+          >
+            <ImportIdentityDialog
+              onImport={onImport}
+              trigger={
+                <span className="flex items-center w-full px-1.5 py-1 cursor-pointer">
+                  Import Identity
+                </span>
+              }
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setMenuOpen(false)}
+            className="cursor-pointer text-sm text-muted-foreground p-0"
+          >
+            <CreateIdentityDialog
+              onCreateIdentity={onCreate}
+              trigger={
+                <span className="flex items-center w-full px-1.5 py-1 cursor-pointer">
+                  + New Identity
+                </span>
+              }
+            />
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

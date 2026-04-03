@@ -13,6 +13,7 @@ import {
   Lock,
   FileText,
   Table2,
+  History,
 } from "lucide-react";
 import { ShareDialog } from "@/components/share-dialog";
 import { SpreadsheetEditor } from "@/components/spreadsheet-editor";
@@ -22,6 +23,7 @@ import {
   serializeSpreadsheet,
   deserializeSpreadsheet,
 } from "@/lib/spreadsheet";
+import { EditHistoryPanel } from "@/components/edit-history-panel";
 
 interface DocContext {
   title: string;
@@ -47,6 +49,7 @@ export default function DocPage() {
   const docId = params.id as string;
   const { active } = useIdentity();
   const [docCtx, setDocCtx] = useState<DocContext | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Text document state
   const [content, setContent] = useState("");
@@ -69,15 +72,19 @@ export default function DocPage() {
     setDocCtx(ctx);
   }, [docId]);
 
-  const { edits, loading, addEdit } = useDocumentEdits(
+  const { edits, loading, loaded, addEdit } = useDocumentEdits(
     docId,
     docCtx?.docKey ?? null,
     active,
   );
 
-  // Build current state from edits (last edit = latest state)
+  // Build current state from edits once the real fetch completes
   useEffect(() => {
-    if (initialized || edits.length === 0) return;
+    if (initialized || !loaded) return;
+    if (edits.length === 0) {
+      setInitialized(true);
+      return;
+    }
     const latest = edits[edits.length - 1];
     if (isSpreadsheet) {
       try {
@@ -89,14 +96,7 @@ export default function DocPage() {
       setContent(latest.content);
     }
     setInitialized(true);
-  }, [edits, isSpreadsheet, initialized]);
-
-  // Mark initialized when edits load empty (new doc)
-  useEffect(() => {
-    if (!loading && edits.length === 0 && docCtx) {
-      setInitialized(true);
-    }
-  }, [loading, edits.length, docCtx]);
+  }, [edits, isSpreadsheet, initialized, loaded]);
 
   const handleSave = useCallback(async () => {
     if (saving) return;
@@ -142,7 +142,7 @@ export default function DocPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/app")}
             >
               <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
               Back to Documents
@@ -165,7 +165,7 @@ export default function DocPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/app")}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -191,6 +191,17 @@ export default function DocPage() {
                 saved {lastSaved.toLocaleTimeString()}
               </span>
             )}
+            {edits.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                <History className="h-3.5 w-3.5" />
+                {edits.length} edit{edits.length !== 1 ? "s" : ""}
+              </Button>
+            )}
             {active && (
               <ShareDialog
                 documentId={docId}
@@ -215,56 +226,40 @@ export default function DocPage() {
         </div>
       </header>
 
-      {/* ── Editor ────────────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col">
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-          </div>
-        ) : isSpreadsheet ? (
-          /* ── Spreadsheet editor ─────────────────────────────────── */
-          <div className="flex-1 flex flex-col">
-            {edits.length > 0 && (
-              <div className="flex items-center gap-2 py-2 px-6 border-b">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
-                  {edits.length} edit{edits.length !== 1 ? "s" : ""}
-                </span>
-                <span className="text-muted-foreground/20">|</span>
-                <span className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-1">
-                  <User className="h-2.5 w-2.5" />
-                  {edits[edits.length - 1]?.authorId?.slice(0, 8)}
-                </span>
-              </div>
-            )}
-            <SpreadsheetEditor data={sheetData} onChange={setSheetData} />
-          </div>
-        ) : (
-          /* ── Text editor ────────────────────────────────────────── */
-          <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
-            {edits.length > 0 && (
-              <div className="flex items-center gap-2 py-3 border-b">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
-                  {edits.length} edit{edits.length !== 1 ? "s" : ""}
-                </span>
-                <span className="text-muted-foreground/20">|</span>
-                <span className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-1">
-                  <User className="h-2.5 w-2.5" />
-                  {edits[edits.length - 1]?.authorId?.slice(0, 8)}
-                </span>
-              </div>
-            )}
+      {/* ── Editor + History ──────────────────────────────────────── */}
+      <div className="flex-1 flex">
+        <main className="flex-1 flex flex-col min-w-0">
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+            </div>
+          ) : isSpreadsheet ? (
+            <div className="flex-1 flex flex-col">
+              <SpreadsheetEditor data={sheetData} onChange={setSheetData} />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Start writing... (Markdown supported)"
+                className="flex-1 w-full resize-none bg-transparent py-6 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/30 font-[family-name:var(--font-body)]"
+                spellCheck
+              />
+            </div>
+          )}
+        </main>
 
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Start writing... (Markdown supported)"
-              className="flex-1 w-full resize-none bg-transparent py-6 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/30 font-[family-name:var(--font-body)]"
-              spellCheck
-            />
-          </div>
+        {/* ── Edit History Side Panel ─────────────────────────────── */}
+        {showHistory && (
+          <EditHistoryPanel
+            edits={edits}
+            isSpreadsheet={isSpreadsheet}
+            onClose={() => setShowHistory(false)}
+          />
         )}
-      </main>
+      </div>
 
       {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="border-t">

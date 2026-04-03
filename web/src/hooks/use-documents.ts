@@ -193,6 +193,7 @@ export function useDocumentEdits(
 ) {
   const [edits, setEdits] = useState<DocumentEdit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -233,6 +234,7 @@ export function useDocumentEdits(
 
       decrypted.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
       setEdits(decrypted);
+      setLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load edits");
     } finally {
@@ -282,5 +284,5 @@ export function useDocumentEdits(
     [documentId, docKey, identity, edits, refresh],
   );
 
-  return { edits, loading, error, refresh, addEdit };
+  return { edits, loading, loaded, error, refresh, addEdit };
 }

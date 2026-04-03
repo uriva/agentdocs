@@ -148,7 +148,7 @@ export default function TicketPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/app")}
             >
               <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
               Back to Tickets
@@ -169,7 +169,7 @@ export default function TicketPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/app")}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -289,7 +289,7 @@ export default function TicketPage() {
                       <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/50">
                         <User className="h-2.5 w-2.5" />
                         <span>{comment.authorId.slice(0, 8)}</span>
-                        <span className="text-muted-foreground/20">·</span>
+                        <span className="text-muted-foreground/20">&middot;</span>
                         <span>
                           {new Date(comment.createdAt).toLocaleString()}
                         </span>
