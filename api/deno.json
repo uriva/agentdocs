@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4.12.10",
+    "@std/": "jsr:@std/"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read main.ts"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable", "dom", "dom.iterable"]
+  }
+}
