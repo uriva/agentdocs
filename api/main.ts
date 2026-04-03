@@ -83,9 +83,6 @@ app.route("/api/tickets", ticketsRouter);
 // Identity registration (requires InstantDB account token, not identity signature)
 
 app.post("/register-identity", async (c) => {
-  // This endpoint is called by the web app after generating keys client-side.
-  // The web app is authenticated via InstantDB session, and sends the public keys
-  // to register. The Deno API writes them to InstantDB.
   const body = await c.req.json();
   const { signingPublicKey, encryptionPublicKey, name, algorithmSuite, userId } = body;
 
@@ -93,19 +90,21 @@ app.post("/register-identity", async (c) => {
     return c.json({ error: "Missing required fields" }, 400);
   }
 
-  // TODO: Verify InstantDB user token to confirm userId
-  // For now, we trust the client (this will be secured via InstantDB admin token)
+  try {
+    const { createIdentity } = await import("./db.ts");
+    const identity = await createIdentity({
+      signingPublicKey,
+      encryptionPublicKey,
+      name: name || "Unnamed Identity",
+      algorithmSuite,
+      userId,
+    });
 
-  const { createIdentity } = await import("./db.ts");
-  const identity = await createIdentity({
-    signingPublicKey,
-    encryptionPublicKey,
-    name: name || "Unnamed Identity",
-    algorithmSuite,
-    userId,
-  });
-
-  return c.json({ identity });
+    return c.json({ identity });
+  } catch (err) {
+    console.error("register-identity error:", err);
+    return c.json({ error: err instanceof Error ? err.message : "Failed to create identity" }, 500);
+  }
 });
 
 const port = parseInt(Deno.env.get("PORT") || "8787");

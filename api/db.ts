@@ -29,8 +29,9 @@ async function query(q: InstantQuery): Promise<Record<string, unknown[]>> {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${INSTANT_ADMIN_TOKEN}`,
+      "app-id": INSTANT_APP_ID,
     },
-    body: JSON.stringify({ query: q, "app-id": INSTANT_APP_ID }),
+    body: JSON.stringify({ query: q }),
   });
 
   if (!res.ok) {
@@ -49,8 +50,9 @@ async function transact(steps: unknown[]): Promise<unknown> {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${INSTANT_ADMIN_TOKEN}`,
+      "app-id": INSTANT_APP_ID,
     },
-    body: JSON.stringify({ steps, "app-id": INSTANT_APP_ID }),
+    body: JSON.stringify({ steps }),
   });
 
   if (!res.ok) {
@@ -101,9 +103,9 @@ export async function createIdentity(params: {
       encryptionPublicKey: params.encryptionPublicKey,
       name: params.name,
       algorithmSuite: params.algorithmSuite,
+      userId: params.userId,
       createdAt: Date.now(),
     }],
-    ["link", "identities", id, { owner: params.userId }],
   ]);
 
   return { id };
