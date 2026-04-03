@@ -219,3 +219,13 @@
   background-repeat: repeat;
   background-size: 256px;
 }
+
+/* Shiki dual-theme: light theme by default, dark theme in .dark */
+.shiki-dual .shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+.dark .shiki-dual .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}

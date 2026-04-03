@@ -13,6 +13,7 @@ import {
   Code,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
+import { CodeBlock } from "@/components/code-block";
 
 /* ── Scroll-triggered animation hook ─────────────────────────────── */
 
@@ -131,49 +132,27 @@ function LandingPage() {
                 agent.ts
               </span>
             </div>
-            <pre className="p-5 text-[13px] font-mono leading-relaxed overflow-x-auto">
-              <code>
-                <span className="text-muted-foreground">{"// Create a document with your agent's identity"}</span>
-{"\n"}
-                <span className="text-muted-foreground">{"const "}</span>
-                <span className="text-foreground">response</span>
-                <span className="text-muted-foreground"> = </span>
-                <span className="text-muted-foreground">{"await "}</span>
-                fetch(<span className="text-orange-400 dark:text-orange-300">&quot;/api/documents&quot;</span>, {"{"}
-{"\n"}
-                {"  "}method: <span className="text-orange-400 dark:text-orange-300">&quot;POST&quot;</span>,
-{"\n"}
-                {"  "}headers: signedHeaders(identityKey),
-{"\n"}
-                {"  "}body: JSON.stringify({"{"}
-{"\n"}
-                {"    "}encryptedTitle: <span className="text-muted-foreground">{"await "}</span>encrypt(title, docKey),
-{"\n"}
-                {"    "}type: <span className="text-orange-400 dark:text-orange-300">&quot;doc&quot;</span>,
-{"\n"}
-                {"  "}{"}"})
-{"\n"}
-                {"}"});
-{"\n\n"}
-                <span className="text-muted-foreground">{"// Share it with another agent or human"}</span>
-{"\n"}
-                <span className="text-muted-foreground">{"await "}</span>fetch(<span className="text-orange-400 dark:text-orange-300">{"`/api/documents/${docId}/share`"}</span>, {"{"}
-{"\n"}
-                {"  "}method: <span className="text-orange-400 dark:text-orange-300">&quot;POST&quot;</span>,
-{"\n"}
-                {"  "}headers: signedHeaders(identityKey),
-{"\n"}
-                {"  "}body: JSON.stringify({"{"}
-{"\n"}
-                {"    "}granteeId: otherAgentId,
-{"\n"}
-                {"    "}encryptedSymmetricKey: <span className="text-muted-foreground">{"await "}</span>ecdhWrap(docKey, theirPublicKey),
-{"\n"}
-                {"  "}{"}"})
-{"\n"}
-                {"}"});
-              </code>
-            </pre>
+            <CodeBlock
+              code={`// Create a document with your agent's identity
+const response = await fetch("/api/documents", {
+  method: "POST",
+  headers: signedHeaders(identityKey),
+  body: JSON.stringify({
+    encryptedTitle: await encrypt(title, docKey),
+    type: "doc",
+  })
+});
+
+// Share it with another agent or human
+await fetch(\`/api/documents/\${docId}/share\`, {
+  method: "POST",
+  headers: signedHeaders(identityKey),
+  body: JSON.stringify({
+    granteeId: otherAgentId,
+    encryptedSymmetricKey: await ecdhWrap(docKey, theirPublicKey),
+  })
+});`}
+            />
           </div>
         </section>
 
@@ -363,13 +342,27 @@ function Step({
 }
 
 function SignInButton({ size = "default" }: { size?: "default" | "lg" }) {
-  const { sendMagicCode, signInWithMagicCode } = useAuth();
+  const { user, sendMagicCode, signInWithMagicCode } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [loading, setLoading] = useState(false);
+
+  // Already signed in — show "Go to App"
+  if (user) {
+    return (
+      <Button
+        size={size === "lg" ? "lg" : "default"}
+        className={size === "lg" ? "h-11 px-6 gap-2" : "h-8 px-3 gap-1.5 text-xs"}
+        onClick={() => router.push("/app")}
+      >
+        Go to App
+        <ArrowRight className="h-3.5 w-3.5" />
+      </Button>
+    );
+  }
 
   async function handleSendCode() {
     if (!email.trim()) return;

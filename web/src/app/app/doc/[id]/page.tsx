@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIdentity } from "@/hooks/use-identity";
 import { useDocumentEdits } from "@/hooks/use-documents";
@@ -51,19 +51,17 @@ export default function DocPage() {
   const [docCtx, setDocCtx] = useState<DocContext | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Text document state
-  const [content, setContent] = useState("");
+  // Text document state — derived from edits until user starts editing
+  const [userContent, setUserContent] = useState("");
+  const [userEdited, setUserEdited] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Spreadsheet state
-  const [sheetData, setSheetData] = useState<SpreadsheetData>(
-    emptySpreadsheet(),
-  );
+  // Spreadsheet state — same pattern
+  const [userSheetData, setUserSheetData] = useState<SpreadsheetData | null>(null);
 
   // Common state
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
   const isSpreadsheet = docCtx?.type === "spreadsheet";
 
@@ -78,25 +76,33 @@ export default function DocPage() {
     active,
   );
 
-  // Build current state from edits once the real fetch completes
-  useEffect(() => {
-    if (initialized || !loaded) return;
-    if (edits.length === 0) {
-      setInitialized(true);
-      return;
+  // Derive initial content from edits (no effect, no race condition)
+  const initialContent = useMemo(() => {
+    if (!loaded || edits.length === 0) return "";
+    return edits[edits.length - 1].content;
+  }, [edits, loaded]);
+
+  const initialSheetData = useMemo(() => {
+    if (!loaded || edits.length === 0) return emptySpreadsheet();
+    try {
+      return deserializeSpreadsheet(edits[edits.length - 1].content);
+    } catch {
+      return emptySpreadsheet();
     }
-    const latest = edits[edits.length - 1];
-    if (isSpreadsheet) {
-      try {
-        setSheetData(deserializeSpreadsheet(latest.content));
-      } catch {
-        setSheetData(emptySpreadsheet());
-      }
-    } else {
-      setContent(latest.content);
-    }
-    setInitialized(true);
-  }, [edits, isSpreadsheet, initialized, loaded]);
+  }, [edits, loaded]);
+
+  // Resolved values: use user edits if user has touched the editor, otherwise derived from edits
+  const content = userEdited ? userContent : initialContent;
+  const sheetData = userSheetData ?? initialSheetData;
+
+  const handleContentChange = useCallback((value: string) => {
+    setUserContent(value);
+    setUserEdited(true);
+  }, []);
+
+  const handleSheetChange = useCallback((data: SpreadsheetData) => {
+    setUserSheetData(data);
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (saving) return;
@@ -108,6 +114,9 @@ export default function DocPage() {
     try {
       await addEdit(payload);
       setLastSaved(new Date());
+      // After saving, reset userEdited so subsequent fetches can update content
+      setUserEdited(false);
+      setUserSheetData(null);
     } catch (err) {
       console.error("Save failed:", err);
     } finally {
@@ -235,14 +244,14 @@ export default function DocPage() {
             </div>
           ) : isSpreadsheet ? (
             <div className="flex-1 flex flex-col">
-              <SpreadsheetEditor data={sheetData} onChange={setSheetData} />
+              <SpreadsheetEditor data={sheetData} onChange={handleSheetChange} />
             </div>
           ) : (
             <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => handleContentChange(e.target.value)}
                 placeholder="Start writing... (Markdown supported)"
                 className="flex-1 w-full resize-none bg-transparent py-6 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/30 font-[family-name:var(--font-body)]"
                 spellCheck

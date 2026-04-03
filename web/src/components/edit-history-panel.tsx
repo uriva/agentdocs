@@ -231,10 +231,10 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
     <div className="space-y-1.5">
       <div className="flex items-center gap-2 text-[10px] font-mono">
         {stats.added > 0 && (
-          <span className="text-foreground/70">+{stats.added}</span>
+          <span className="text-green-600 dark:text-green-400">+{stats.added}</span>
         )}
         {stats.removed > 0 && (
-          <span className="text-muted-foreground/60">-{stats.removed}</span>
+          <span className="text-red-600 dark:text-red-400">-{stats.removed}</span>
         )}
       </div>
       <div className="rounded border bg-muted/10 overflow-auto max-h-64">
@@ -244,9 +244,9 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
               key={i}
               className={
                 dl.type === "added"
-                  ? "bg-foreground/5 text-foreground/80 px-1"
+                  ? "bg-green-500/15 text-green-700 dark:text-green-300 px-1"
                   : dl.type === "removed"
-                    ? "bg-muted/30 text-muted-foreground/40 line-through px-1"
+                    ? "bg-red-500/15 text-red-700 dark:text-red-400 line-through px-1"
                     : "text-foreground/50 px-1"
               }
             >
