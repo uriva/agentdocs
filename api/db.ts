@@ -285,3 +285,216 @@ export async function getIdentity(
   if (!identities || identities.length === 0) return null;
   return identities[0] as Record<string, unknown>;
 }
+
+// ─── Ticket Operations ────────────────────────────────────────────────────────
+
+export async function createTicket(params: {
+  encryptedTitle: string;
+  encryptedTitleIv: string;
+  encryptedBody: string;
+  encryptedBodyIv: string;
+  status: string;
+  priority: string;
+  algorithm: string;
+  creatorIdentityId: string;
+  accessGrant: {
+    encryptedSymmetricKey: string;
+    iv: string;
+    salt: string;
+    algorithm: string;
+  };
+}): Promise<{ id: string }> {
+  const ticketId = crypto.randomUUID();
+  const grantId = crypto.randomUUID();
+  const now = Date.now();
+
+  await transact([
+    // Create the ticket
+    ["update", "tickets", ticketId, {
+      encryptedTitle: params.encryptedTitle,
+      encryptedTitleIv: params.encryptedTitleIv,
+      encryptedBody: params.encryptedBody,
+      encryptedBodyIv: params.encryptedBodyIv,
+      status: params.status,
+      priority: params.priority,
+      algorithm: params.algorithm,
+      createdAt: now,
+      updatedAt: now,
+    }],
+    // Link ticket to creator
+    ["link", "tickets", ticketId, { creator: params.creatorIdentityId }],
+    // Create self-grant for ticket
+    ["update", "accessGrants", grantId, {
+      encryptedSymmetricKey: params.accessGrant.encryptedSymmetricKey,
+      iv: params.accessGrant.iv,
+      salt: params.accessGrant.salt,
+      algorithm: params.accessGrant.algorithm,
+      createdAt: now,
+    }],
+    // Link access grant to ticket and identity
+    ["link", "accessGrants", grantId, { ticket: ticketId }],
+    ["link", "accessGrants", grantId, { grantee: params.creatorIdentityId }],
+    ["link", "accessGrants", grantId, { grantor: params.creatorIdentityId }],
+  ]);
+
+  return { id: ticketId };
+}
+
+export async function updateTicketMetadata(params: {
+  ticketId: string;
+  status?: string;
+  priority?: string;
+}): Promise<void> {
+  const data: Record<string, unknown> = { updatedAt: Date.now() };
+  if (params.status) data.status = params.status;
+  if (params.priority) data.priority = params.priority;
+
+  await transact([
+    ["update", "tickets", params.ticketId, data],
+  ]);
+}
+
+export async function updateTicketEncryptedContent(params: {
+  ticketId: string;
+  encryptedTitle: string;
+  encryptedTitleIv: string;
+  encryptedBody: string;
+  encryptedBodyIv: string;
+  algorithm: string;
+}): Promise<void> {
+  await transact([
+    ["update", "tickets", params.ticketId, {
+      encryptedTitle: params.encryptedTitle,
+      encryptedTitleIv: params.encryptedTitleIv,
+      encryptedBody: params.encryptedBody,
+      encryptedBodyIv: params.encryptedBodyIv,
+      algorithm: params.algorithm,
+      updatedAt: Date.now(),
+    }],
+  ]);
+}
+
+export async function addTicketComment(params: {
+  ticketId: string;
+  encryptedContent: string;
+  encryptedContentIv: string;
+  signature: string;
+  algorithm: string;
+  authorIdentityId: string;
+}): Promise<{ id: string }> {
+  const commentId = crypto.randomUUID();
+
+  await transact([
+    ["update", "ticketComments", commentId, {
+      encryptedContent: params.encryptedContent,
+      encryptedContentIv: params.encryptedContentIv,
+      signature: params.signature,
+      algorithm: params.algorithm,
+      createdAt: Date.now(),
+    }],
+    ["link", "ticketComments", commentId, { ticket: params.ticketId }],
+    ["link", "ticketComments", commentId, { author: params.authorIdentityId }],
+  ]);
+
+  return { id: commentId };
+}
+
+export async function getTicketComments(
+  ticketId: string
+): Promise<unknown[]> {
+  const result = await query({
+    ticketComments: {
+      $: { where: { "ticket.id": ticketId }, order: { serverCreatedAt: "asc" } },
+      author: {},
+    },
+  });
+
+  return (result.ticketComments as unknown[]) || [];
+}
+
+export async function getTicketsForIdentity(
+  identityId: string
+): Promise<unknown[]> {
+  // Query access grants linked to tickets for this identity
+  const result = await query({
+    accessGrants: {
+      $: { where: { "grantee.id": identityId } },
+      ticket: {},
+      grantor: {},
+    },
+  });
+
+  const grants = (result.accessGrants as Array<{
+    id: string;
+    encryptedSymmetricKey: string;
+    iv: string;
+    salt: string;
+    algorithm: string;
+    ticket: Array<Record<string, unknown>>;
+    grantor: Array<Record<string, unknown>>;
+  }>) || [];
+
+  // Group by ticket, attaching access grant info
+  const ticketMap = new Map<string, Record<string, unknown>>();
+  for (const grant of grants) {
+    const ticket = grant.ticket?.[0];
+    if (!ticket || !ticket.id) continue;
+    const ticketId = ticket.id as string;
+
+    if (!ticketMap.has(ticketId)) {
+      ticketMap.set(ticketId, {
+        ...ticket,
+        accessGrants: [],
+      });
+    }
+
+    const existing = ticketMap.get(ticketId)!;
+    (existing.accessGrants as unknown[]).push({
+      id: grant.id,
+      encryptedSymmetricKey: grant.encryptedSymmetricKey,
+      iv: grant.iv,
+      salt: grant.salt,
+      algorithm: grant.algorithm,
+      grantor: grant.grantor,
+    });
+  }
+
+  return Array.from(ticketMap.values());
+}
+
+export async function createTicketAccessGrant(params: {
+  ticketId: string;
+  granteeIdentityId: string;
+  grantorIdentityId: string;
+  encryptedSymmetricKey: string;
+  iv: string;
+  salt: string;
+  algorithm: string;
+}): Promise<{ id: string }> {
+  const grantId = crypto.randomUUID();
+
+  await transact([
+    ["update", "accessGrants", grantId, {
+      encryptedSymmetricKey: params.encryptedSymmetricKey,
+      iv: params.iv,
+      salt: params.salt,
+      algorithm: params.algorithm,
+      createdAt: Date.now(),
+    }],
+    ["link", "accessGrants", grantId, { ticket: params.ticketId }],
+    ["link", "accessGrants", grantId, { grantee: params.granteeIdentityId }],
+    ["link", "accessGrants", grantId, { grantor: params.grantorIdentityId }],
+  ]);
+
+  return { id: grantId };
+}
+
+export async function assignTicket(params: {
+  ticketId: string;
+  assigneeIdentityId: string;
+}): Promise<void> {
+  await transact([
+    ["link", "tickets", params.ticketId, { assignee: params.assigneeIdentityId }],
+    ["update", "tickets", params.ticketId, { updatedAt: Date.now() }],
+  ]);
+}

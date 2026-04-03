@@ -4,6 +4,7 @@ import { verifyRequest } from "./crypto.ts";
 import { getIdentityPublicKeys } from "./db.ts";
 import { documentsRouter } from "./routes/documents.ts";
 import { identitiesRouter } from "./routes/identities.ts";
+import { ticketsRouter } from "./routes/tickets.ts";
 import type { AppEnv } from "./types.ts";
 
 const app = new Hono<AppEnv>();
@@ -11,7 +12,7 @@ const app = new Hono<AppEnv>();
 // CORS for web app
 app.use("/*", cors({
   origin: ["http://localhost:3000", "https://agentdocs.dev"],
-  allowMethods: ["GET", "POST", "PUT", "DELETE"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowHeaders: ["Content-Type", "X-Identity-Id", "X-Timestamp", "X-Signature"],
 }));
 
@@ -76,6 +77,7 @@ app.use("/api/*", async (c, next) => {
 
 app.route("/api/documents", documentsRouter);
 app.route("/api/identities", identitiesRouter);
+app.route("/api/tickets", ticketsRouter);
 
 // ─── Public Routes (no auth required) ────────────────────────────────────────
 // Identity registration (requires InstantDB account token, not identity signature)
