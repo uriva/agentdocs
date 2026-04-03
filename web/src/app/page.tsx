@@ -6,10 +6,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Lock,
-  Bot,
-  KeyRound,
-  EyeOff,
   ArrowRight,
+  ShieldCheck,
+  Terminal,
+  Users,
+  Code,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
 
@@ -76,9 +77,29 @@ function LandingPage() {
       <main className="flex-1">
         <section className="mx-auto max-w-4xl px-6 pt-24 pb-20">
           <div className="max-w-2xl space-y-6">
-            <div className="animate-fade-up delay-0 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />
-              API-first &middot; End-to-end encrypted
+            {/* Value props — scannable at a glance */}
+            <div className="animate-fade-up delay-0 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/30 bg-foreground/5 px-3 py-1 text-[11px] font-mono font-medium text-foreground">
+                <ShieldCheck className="h-3 w-3" />
+                End-to-end encrypted
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
+                <Terminal className="h-3 w-3" />
+                API-first
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
+                <Users className="h-3 w-3" />
+                Infinite identities, free
+              </span>
+              <a
+                href="https://github.com/uriva/agentdocs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+              >
+                <Code className="h-3 w-3" />
+                Open source
+              </a>
             </div>
 
             <h1 className="animate-fade-up delay-1 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
@@ -88,22 +109,13 @@ function LandingPage() {
             </h1>
 
             <p className="animate-fade-up delay-2 text-lg text-muted-foreground leading-relaxed max-w-lg">
-              Documents, spreadsheets, and tickets your AI agents can read and
-              write through a simple API. Every byte is end-to-end encrypted
-              &mdash; we literally cannot read your data.
+              Documents, spreadsheets, and tickets your AI agents can create and
+              edit through a simple REST API. Everything is encrypted
+              client-side &mdash; the server only ever sees ciphertext.
             </p>
 
             <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
               <SignInButton size="lg" />
-              <a
-                href="https://github.com/uriva/agentdocs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                View source
-                <ArrowRight className="h-3.5 w-3.5" />
-              </a>
             </div>
           </div>
 
@@ -170,23 +182,23 @@ function LandingPage() {
           <div className="mx-auto max-w-4xl px-6 py-20">
             <div className="grid sm:grid-cols-3 gap-10">
               <Feature
-                icon={Bot}
-                title="Built for agents"
-                description="Every operation is an API call. No browser needed. Sign requests with your agent's Ed25519 private key and go."
+                icon={ShieldCheck}
+                title="End-to-end encrypted"
+                description="AES-256-GCM encryption happens entirely client-side. The server stores only ciphertext. No plaintext titles, content, or comments. Ever."
                 inView={featuresInView}
                 delay={0}
               />
               <Feature
-                icon={KeyRound}
-                title="Unlimited identities"
-                description="Create as many identities as you want for your army of bots. Each gets its own key pair. Share documents between them with ECDH key exchange."
+                icon={Terminal}
+                title="API-first"
+                description="Every operation is a REST call. No browser needed. Sign requests with your agent's Ed25519 key and go. Human web UI uses the same API."
                 inView={featuresInView}
                 delay={1}
               />
               <Feature
-                icon={EyeOff}
-                title="Zero-knowledge"
-                description="AES-256-GCM encryption happens client-side. We store ciphertext. No plaintext titles, no plaintext content, no plaintext comments. Ever."
+                icon={Users}
+                title="Unlimited free identities"
+                description="Create as many cryptographic identities as you need. Each gets its own key pair. Share documents between them with ECDH key exchange."
                 inView={featuresInView}
                 delay={2}
               />
@@ -275,8 +287,8 @@ function LandingPage() {
               Give your agents a workspace
             </h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Open source. Self-hostable. Takes 30 seconds to create your first
-              identity.
+              End-to-end encrypted. API-first. Unlimited identities.
+              Free and open source forever.
             </p>
             <SignInButton size="lg" />
           </div>
@@ -293,7 +305,7 @@ function Feature({
   inView = true,
   delay = 0,
 }: {
-  icon: typeof Bot;
+  icon: typeof ShieldCheck;
   title: string;
   description: string;
   inView?: boolean;
