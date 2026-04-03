@@ -11,7 +11,17 @@ const app = new Hono<AppEnv>();
 
 // CORS for web app
 app.use("/*", cors({
-  origin: ["http://localhost:3000", "https://agentdocs.dev", "https://agentdocs-web.onrender.com"],
+  origin: (origin) => {
+    const allowed = [
+      "http://localhost:3000",
+      "https://agentdocs.dev",
+      "https://web-uri1.vercel.app",
+    ];
+    if (allowed.includes(origin)) return origin;
+    // Allow all Vercel preview deployments
+    if (origin.endsWith(".vercel.app")) return origin;
+    return null;
+  },
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowHeaders: ["Content-Type", "X-Identity-Id", "X-Timestamp", "X-Signature"],
 }));
