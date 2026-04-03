@@ -8,20 +8,34 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   Save,
-  Share2,
   Clock,
   User,
   Lock,
+  FileText,
+  Table2,
 } from "lucide-react";
 import { ShareDialog } from "@/components/share-dialog";
+import { SpreadsheetEditor } from "@/components/spreadsheet-editor";
+import {
+  type SpreadsheetData,
+  emptySpreadsheet,
+  serializeSpreadsheet,
+  deserializeSpreadsheet,
+} from "@/lib/spreadsheet";
+
+interface DocContext {
+  title: string;
+  docKey: string;
+  type?: string;
+}
 
 /** Doc key is passed via sessionStorage to avoid URL exposure */
-function getDocContext(docId: string) {
+function getDocContext(docId: string): DocContext | null {
   if (typeof window === "undefined") return null;
   const raw = sessionStorage.getItem(`agentdocs:doc:${docId}`);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as { title: string; docKey: string };
+    return JSON.parse(raw) as DocContext;
   } catch {
     return null;
   }
@@ -32,14 +46,23 @@ export default function DocPage() {
   const router = useRouter();
   const docId = params.id as string;
   const { active } = useIdentity();
-  const [docCtx, setDocCtx] = useState<{
-    title: string;
-    docKey: string;
-  } | null>(null);
+  const [docCtx, setDocCtx] = useState<DocContext | null>(null);
+
+  // Text document state
   const [content, setContent] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Spreadsheet state
+  const [sheetData, setSheetData] = useState<SpreadsheetData>(
+    emptySpreadsheet(),
+  );
+
+  // Common state
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  const isSpreadsheet = docCtx?.type === "spreadsheet";
 
   useEffect(() => {
     const ctx = getDocContext(docId);
@@ -52,26 +75,45 @@ export default function DocPage() {
     active,
   );
 
-  // Build current content from edits (last edit = latest state)
+  // Build current state from edits (last edit = latest state)
   useEffect(() => {
-    if (edits.length > 0) {
-      const latest = edits[edits.length - 1];
+    if (initialized || edits.length === 0) return;
+    const latest = edits[edits.length - 1];
+    if (isSpreadsheet) {
+      try {
+        setSheetData(deserializeSpreadsheet(latest.content));
+      } catch {
+        setSheetData(emptySpreadsheet());
+      }
+    } else {
       setContent(latest.content);
     }
-  }, [edits]);
+    setInitialized(true);
+  }, [edits, isSpreadsheet, initialized]);
+
+  // Mark initialized when edits load empty (new doc)
+  useEffect(() => {
+    if (!loading && edits.length === 0 && docCtx) {
+      setInitialized(true);
+    }
+  }, [loading, edits.length, docCtx]);
 
   const handleSave = useCallback(async () => {
-    if (!content.trim() || saving) return;
+    if (saving) return;
+    const payload = isSpreadsheet
+      ? serializeSpreadsheet(sheetData)
+      : content;
+    if (!isSpreadsheet && !payload.trim()) return;
     setSaving(true);
     try {
-      await addEdit(content);
+      await addEdit(payload);
       setLastSaved(new Date());
     } catch (err) {
       console.error("Save failed:", err);
     } finally {
       setSaving(false);
     }
-  }, [content, saving, addEdit]);
+  }, [content, sheetData, saving, addEdit, isSpreadsheet]);
 
   // Ctrl+S / Cmd+S shortcut
   useEffect(() => {
@@ -111,6 +153,8 @@ export default function DocPage() {
     );
   }
 
+  const canSave = isSpreadsheet || content.trim().length > 0;
+
   return (
     <div className="grain flex flex-col min-h-full">
       {/* ── Header ─────────────────────────────────────────────────── */}
@@ -126,6 +170,11 @@ export default function DocPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
+              {isSpreadsheet ? (
+                <Table2 className="h-4 w-4 text-muted-foreground/60" />
+              ) : (
+                <FileText className="h-4 w-4 text-muted-foreground/60" />
+              )}
               <span className="text-sm font-medium truncate max-w-[300px]">
                 {docCtx.title}
               </span>
@@ -153,7 +202,7 @@ export default function DocPage() {
               size="sm"
               className="h-8 gap-1.5 text-xs"
               onClick={handleSave}
-              disabled={saving || !content.trim()}
+              disabled={saving || !canSave}
             >
               {saving ? (
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -172,9 +221,26 @@ export default function DocPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
           </div>
+        ) : isSpreadsheet ? (
+          /* ── Spreadsheet editor ─────────────────────────────────── */
+          <div className="flex-1 flex flex-col">
+            {edits.length > 0 && (
+              <div className="flex items-center gap-2 py-2 px-6 border-b">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                  {edits.length} edit{edits.length !== 1 ? "s" : ""}
+                </span>
+                <span className="text-muted-foreground/20">|</span>
+                <span className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-1">
+                  <User className="h-2.5 w-2.5" />
+                  {edits[edits.length - 1]?.authorId?.slice(0, 8)}
+                </span>
+              </div>
+            )}
+            <SpreadsheetEditor data={sheetData} onChange={setSheetData} />
+          </div>
         ) : (
+          /* ── Text editor ────────────────────────────────────────── */
           <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
-            {/* Edit history bar */}
             {edits.length > 0 && (
               <div className="flex items-center gap-2 py-3 border-b">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
@@ -188,7 +254,6 @@ export default function DocPage() {
               </div>
             )}
 
-            {/* Textarea editor */}
             <textarea
               ref={textareaRef}
               value={content}
@@ -205,7 +270,9 @@ export default function DocPage() {
       <footer className="border-t">
         <div className="mx-auto flex h-8 max-w-6xl items-center justify-between px-6">
           <span className="text-[10px] font-mono text-muted-foreground/40">
-            {content.length} chars
+            {isSpreadsheet
+              ? `${Object.keys(sheetData.cells).length} cells`
+              : `${content.length} chars`}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground/40">
             AES-256-GCM + Ed25519

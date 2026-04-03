@@ -40,7 +40,7 @@ export function CreateIdentityDialog({
     try {
       const identity = await onCreateIdentity(name.trim());
       setCreated(identity);
-      setExportString(exportIdentity(identity.keyPair));
+      setExportString(exportIdentity(identity.id, identity.name, identity.keyPair));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create identity");
     } finally {

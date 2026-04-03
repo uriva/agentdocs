@@ -5,6 +5,7 @@ import { useIdentity } from "@/hooks/use-identity";
 import { useDocuments, type DocumentHeader } from "@/hooks/use-documents";
 import { IdentitySwitcher } from "@/components/identity-switcher";
 import { CreateIdentityDialog } from "@/components/create-identity-dialog";
+import { ImportIdentityDialog } from "@/components/import-identity-dialog";
 import { Button } from "@/components/ui/button";
 import {
   FileText,
@@ -14,15 +15,45 @@ import {
   RefreshCw,
   Copy,
   Table2,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { importIdentity } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function Home() {
-  const { identities, active, loading, switchTo, create } = useIdentity();
-  const { documents, loading: docsLoading, error: docsError, refresh, createDocument } =
-    useDocuments(active);
+  const { identities, active, loading, switchTo, create, importExisting } =
+    useIdentity();
+  const {
+    documents,
+    loading: docsLoading,
+    error: docsError,
+    refresh,
+    createDocument,
+  } = useDocuments(active);
+  const fragmentHandled = useRef(false);
+
+  // ── Handle #import/ URL fragment on load ──────────────────────
+  useEffect(() => {
+    if (loading || fragmentHandled.current) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#import/")) return;
+    fragmentHandled.current = true;
+
+    const exportData = hash.slice("#import/".length);
+    // Clear the hash immediately so it doesn't linger
+    window.history.replaceState(null, "", window.location.pathname);
+
+    importIdentity(exportData)
+      .then((result) => {
+        importExisting(result);
+        toast.success(`Imported identity "${result.name}"`);
+      })
+      .catch(() => {
+        toast.error("Failed to import identity from link");
+      });
+  }, [loading, importExisting]);
 
   return (
     <div className="grain flex flex-col min-h-full">
@@ -50,6 +81,7 @@ export default function Home() {
                 active={active}
                 onSwitch={switchTo}
                 onCreate={create}
+                onImport={importExisting}
               />
             )}
           </div>
@@ -61,7 +93,7 @@ export default function Home() {
         {loading ? (
           <LoadingSkeleton />
         ) : !active ? (
-          <OnboardingState onCreate={create} />
+          <OnboardingState onCreate={create} onImport={importExisting} />
         ) : (
           <DocumentsView
             active={active}
@@ -91,8 +123,14 @@ function LoadingSkeleton() {
 
 function OnboardingState({
   onCreate,
+  onImport,
 }: {
   onCreate: (name: string) => Promise<StoredIdentity>;
+  onImport: (data: {
+    id: string;
+    name: string;
+    keyPair: Awaited<ReturnType<typeof importIdentity>>["keyPair"];
+  }) => void;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
@@ -114,15 +152,30 @@ function OnboardingState({
           </p>
         </div>
 
-        <CreateIdentityDialog
-          onCreateIdentity={onCreate}
-          trigger={
-            <Button size="lg" className="h-11 px-6 gap-2">
-              <Plus className="h-4 w-4" />
-              Generate Identity
-            </Button>
-          }
-        />
+        <div className="flex flex-col items-center gap-3">
+          <CreateIdentityDialog
+            onCreateIdentity={onCreate}
+            trigger={
+              <Button size="lg" className="h-11 px-6 gap-2">
+                <Plus className="h-4 w-4" />
+                Generate Identity
+              </Button>
+            }
+          />
+          <ImportIdentityDialog
+            onImport={onImport}
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Import existing identity
+              </Button>
+            }
+          />
+        </div>
 
         <div className="pt-4 flex items-center justify-center gap-6 text-[11px] font-mono text-muted-foreground/50">
           <span>Ed25519 signing</span>
@@ -170,6 +223,7 @@ function DocumentsView({
           JSON.stringify({
             title,
             docKey: doc?.docKey || "",
+            type,
           }),
         );
       }
@@ -183,6 +237,7 @@ function DocumentsView({
           JSON.stringify({
             title: updated.title,
             docKey: updated.docKey,
+            type: updated.type,
           }),
         );
       }
@@ -203,6 +258,7 @@ function DocumentsView({
         JSON.stringify({
           title: doc.title,
           docKey: doc.docKey,
+          type: doc.type,
         }),
       );
     }
@@ -255,6 +311,16 @@ function DocumentsView({
             >
               <Plus className="h-3.5 w-3.5" />
               New Doc
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => handleCreate("spreadsheet")}
+              disabled={creating}
+            >
+              <Table2 className="h-3.5 w-3.5" />
+              New Sheet
             </Button>
           </div>
         </div>

@@ -11,13 +11,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fingerprint, type StoredIdentity } from "@/lib/identity-store";
+import { type IdentityKeyPair } from "@/lib/crypto";
 import { CreateIdentityDialog } from "./create-identity-dialog";
+import { ExportIdentityDialog } from "./export-identity-dialog";
+import { ImportIdentityDialog } from "./import-identity-dialog";
 
 interface IdentitySwitcherProps {
   identities: StoredIdentity[];
   active: StoredIdentity | null;
   onSwitch: (id: string) => void;
   onCreate: (name: string) => Promise<StoredIdentity>;
+  onImport: (data: {
+    id: string;
+    name: string;
+    keyPair: IdentityKeyPair;
+  }) => void;
 }
 
 export function IdentitySwitcher({
@@ -25,22 +33,45 @@ export function IdentitySwitcher({
   active,
   onSwitch,
   onCreate,
+  onImport,
 }: IdentitySwitcherProps) {
   if (!active) {
     return (
-      <CreateIdentityDialog
-        onCreateIdentity={onCreate}
-        trigger={
-          <Button size="sm" className="h-8 px-3 text-xs">
-            Create Identity
-          </Button>
-        }
-      />
+      <div className="flex items-center gap-2">
+        <ImportIdentityDialog
+          onImport={onImport}
+          trigger={
+            <Button variant="ghost" size="sm" className="h-8 px-3 text-xs">
+              Import
+            </Button>
+          }
+        />
+        <CreateIdentityDialog
+          onCreateIdentity={onCreate}
+          trigger={
+            <Button size="sm" className="h-8 px-3 text-xs">
+              Create Identity
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
+      <ExportIdentityDialog
+        identity={active}
+        trigger={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-muted-foreground"
+          >
+            Export
+          </Button>
+        }
+      />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -88,6 +119,17 @@ export function IdentitySwitcher({
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
+          <ImportIdentityDialog
+            onImport={onImport}
+            trigger={
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+                className="cursor-pointer text-sm text-muted-foreground"
+              >
+                Import Identity
+              </DropdownMenuItem>
+            }
+          />
           <CreateIdentityDialog
             onCreateIdentity={onCreate}
             trigger={

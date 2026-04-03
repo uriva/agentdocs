@@ -48,6 +48,10 @@ export interface IdentityKeyPair {
 }
 
 export interface ExportedIdentity {
+  /** Identity ID from server (for matching on import) */
+  id: string;
+  /** Human-readable name */
+  name: string;
   signing: { privateKey: string };
   encryption: { privateKey: string };
   algorithm: AlgorithmSuite;
@@ -345,8 +349,14 @@ export async function signRequest(
 
 // ─── Key Export/Import ───────────────────────────────────────────────────────
 
-export function exportIdentity(keyPair: IdentityKeyPair): string {
+export function exportIdentity(
+  id: string,
+  name: string,
+  keyPair: IdentityKeyPair,
+): string {
   const exported: ExportedIdentity = {
+    id,
+    name,
     signing: { privateKey: keyPair.signing.privateKey },
     encryption: { privateKey: keyPair.encryption.privateKey },
     algorithm: keyPair.algorithm,
@@ -356,7 +366,7 @@ export function exportIdentity(keyPair: IdentityKeyPair): string {
 
 export async function importIdentity(
   exportedBase64url: string
-): Promise<IdentityKeyPair> {
+): Promise<{ id: string; name: string; keyPair: IdentityKeyPair }> {
   const json = new TextDecoder().decode(base64urlDecode(exportedBase64url));
   const exported: ExportedIdentity = JSON.parse(json);
 
@@ -410,14 +420,18 @@ export async function importIdentity(
   );
 
   return {
-    signing: {
-      publicKey: base64urlEncode(signingPublicRaw),
-      privateKey: exported.signing.privateKey,
+    id: exported.id,
+    name: exported.name,
+    keyPair: {
+      signing: {
+        publicKey: base64urlEncode(signingPublicRaw),
+        privateKey: exported.signing.privateKey,
+      },
+      encryption: {
+        publicKey: base64urlEncode(encryptionPublicRaw),
+        privateKey: exported.encryption.privateKey,
+      },
+      algorithm: exported.algorithm,
     },
-    encryption: {
-      publicKey: base64urlEncode(encryptionPublicRaw),
-      privateKey: exported.encryption.privateKey,
-    },
-    algorithm: exported.algorithm,
   };
 }

@@ -13,7 +13,11 @@ import {
   removeIdentity,
   renameIdentity,
 } from "@/lib/identity-store";
-import { generateIdentityKeyPair, ALGORITHMS } from "@/lib/crypto";
+import {
+  generateIdentityKeyPair,
+  ALGORITHMS,
+  type IdentityKeyPair,
+} from "@/lib/crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 
@@ -28,6 +32,12 @@ interface UseIdentityReturn {
   switchTo: (id: string) => void;
   /** Create a new identity (generates keys, registers with API) */
   create: (name: string) => Promise<StoredIdentity>;
+  /** Import an existing identity (already registered server-side) */
+  importExisting: (data: {
+    id: string;
+    name: string;
+    keyPair: IdentityKeyPair;
+  }) => StoredIdentity;
   /** Remove an identity */
   remove: (id: string) => void;
   /** Rename an identity */
@@ -115,5 +125,36 @@ export function useIdentity(): UseIdentityReturn {
     [refresh]
   );
 
-  return { identities, active, loading, switchTo, create, remove, rename };
+  const importExisting = useCallback(
+    (data: { id: string; name: string; keyPair: IdentityKeyPair }) => {
+      // Remove existing identity with same ID if present (replace)
+      const existing = getIdentities().find((i) => i.id === data.id);
+      if (existing) {
+        removeIdentity(data.id);
+      }
+
+      const stored: StoredIdentity = {
+        id: data.id,
+        name: data.name,
+        keyPair: data.keyPair,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+      };
+      addIdentity(stored);
+      storeSetActive(stored.id);
+      refresh();
+      return stored;
+    },
+    [refresh]
+  );
+
+  return {
+    identities,
+    active,
+    loading,
+    switchTo,
+    create,
+    importExisting,
+    remove,
+    rename,
+  };
 }
