@@ -9,5 +9,13 @@
   },
   "compilerOptions": {
     "lib": ["deno.ns", "deno.unstable", "dom", "dom.iterable"]
+  },
+  "deploy": {
+    "org": "uriva",
+    "app": "agentdocs-api"
   }
 }
+
+
+
+
