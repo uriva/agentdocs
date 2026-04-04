@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, cloneElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { type StoredIdentity, fingerprint } from "@/lib/identity-store";
@@ -55,22 +54,21 @@ export function ExportIdentityDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
-    >
-      <DialogTrigger
-        render={
-          trigger ? (
-            (trigger as React.ReactElement)
-          ) : (
-            <Button variant="outline" size="sm" />
-          )
-        }
+    <>
+      {trigger ? (
+        cloneElement(trigger as React.ReactElement<{ onClick?: () => void }>, {
+          onClick: () => setOpen(true),
+        })
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Export
+        </Button>
+      )}
+      <Dialog
+        open={open}
+        onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
       >
-        {trigger ? undefined : "Export"}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg tracking-tight">
             Export Identity
@@ -211,6 +209,7 @@ export function ExportIdentityDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, cloneElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { importIdentity } from "@/lib/crypto";
@@ -81,22 +80,21 @@ export function ImportIdentityDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
-    >
-      <DialogTrigger
-        render={
-          trigger ? (
-            (trigger as React.ReactElement)
-          ) : (
-            <Button variant="outline" size="sm" />
-          )
-        }
+    <>
+      {trigger ? (
+        cloneElement(trigger as React.ReactElement<{ onClick?: () => void }>, {
+          onClick: () => setOpen(true),
+        })
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Import
+        </Button>
+      )}
+      <Dialog
+        open={open}
+        onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
       >
-        {trigger ? undefined : "Import"}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg tracking-tight">
             Import Identity
@@ -201,6 +199,7 @@ export function ImportIdentityDialog({
           )}
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

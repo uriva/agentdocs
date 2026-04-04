@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, cloneElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,19 +69,18 @@ export function CreateIdentityDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
-      <DialogTrigger
-        render={
-          trigger ? (
-            trigger as React.ReactElement
-          ) : (
-            <Button variant="outline" size="sm" />
-          )
-        }
-      >
-        {trigger ? undefined : "New Identity"}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+    <>
+      {trigger ? (
+        cloneElement(trigger as React.ReactElement<{ onClick?: () => void }>, {
+          onClick: () => setOpen(true),
+        })
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          New Identity
+        </Button>
+      )}
+      <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
+        <DialogContent className="sm:max-w-md">
         {!created ? (
           <>
             <DialogHeader>
@@ -178,6 +176,7 @@ export function CreateIdentityDialog({
           </>
         )}
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }
