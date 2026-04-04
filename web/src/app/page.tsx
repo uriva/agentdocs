@@ -14,6 +14,9 @@ import {
   BookOpen,
   Network,
   FileText,
+  Table2,
+  CircleDot,
+  Webhook,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
 import { CodeBlock } from "@/components/code-block";
@@ -71,14 +74,33 @@ function LandingPage() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <a
+              href="https://github.com/uriva/agentdocs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="GitHub"
+            >
+              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+              </svg>
+            </a>
             <a
               href="https://agentdocs-api.uriva.deno.net/docs"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
             >
-              API Docs
+              Docs
+            </a>
+            <a
+              href="https://agentdocs-api.uriva.deno.net/llms.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+            >
+              llms.txt
             </a>
             <ThemeToggle />
             <SignInButton />
@@ -92,10 +114,6 @@ function LandingPage() {
           <div className="max-w-2xl space-y-6">
             {/* Value props — scannable at a glance */}
             <div className="animate-fade-up delay-0 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/30 bg-foreground/5 px-3 py-1 text-[11px] font-mono font-medium text-foreground">
-                <BookOpen className="h-3 w-3" />
-                Agent wiki
-              </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
                 <ShieldCheck className="h-3 w-3" />
                 End-to-end encrypted
@@ -116,16 +134,16 @@ function LandingPage() {
             </div>
 
             <h1 className="animate-fade-up delay-1 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
-              Encrypted wiki
+              Encrypted docs
               <br />
               for AI agents
             </h1>
 
             <p className="animate-fade-up delay-2 text-lg text-muted-foreground leading-relaxed max-w-lg">
-              Give your agents persistent memory. They create and link
-              documents by slug, building an encrypted knowledge graph
-              through a simple REST API. Humans read and edit the same
-              wiki in the browser.
+              Documents, spreadsheets, tickets, and a wiki — all end-to-end
+              encrypted, all through a REST API. Agents build persistent
+              memory as linked pages. Humans read and edit the same content
+              in the browser.
             </p>
 
             <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
@@ -141,7 +159,7 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* Code example — wiki upsert */}
+          {/* Code example — wiki upsert (the most distinctive API) */}
           <div className="animate-code-reveal delay-5 mt-16 rounded-lg border bg-card overflow-hidden">
             <div className="flex items-center gap-2 border-b px-4 py-2.5">
               <div className="flex gap-1.5">
@@ -154,28 +172,33 @@ function LandingPage() {
               </span>
             </div>
             <CodeBlock
-              code={`// Upsert a wiki page by slug — idempotent, create-or-update
+              code={`// Wiki: upsert a page by slug — idempotent create-or-update
 await fetch("/api/documents/by-slug/architecture-overview", {
   method: "PUT",
-  headers: signedHeaders(agentIdentity),
+  headers: signedHeaders(identity),
   body: JSON.stringify({
-    encryptedTitle: await encrypt("Architecture Overview", docKey),
-    encryptedContent: await encrypt(markdown, docKey),
-    accessGrant: firstTimeOnly,  // required on create, ignored on update
+    encryptedTitle: await encrypt("Architecture Overview", key),
+    encryptedContent: await encrypt(markdown, key),
+    accessGrant: firstTimeOnly,
   })
 });
 
-// Link pages together — just reference slugs in markdown
-const content = \`
-## Dependencies
-See [[deployment-guide]] for production setup.
-See [[api-reference]] for endpoint details.
-\`;`}
+// Tickets: create an encrypted task
+await fetch("/api/tickets", {
+  method: "POST",
+  headers: signedHeaders(identity),
+  body: JSON.stringify({
+    encryptedTitle: await encrypt("Fix auth timeout", key),
+    encryptedBody: await encrypt(details, key),
+    status: "open", priority: "high",
+    accessGrant,
+  })
+});`}
             />
           </div>
         </section>
 
-        {/* Agent Wiki — the headline feature */}
+        {/* What you get — all four forms */}
         <section className="border-t" ref={wikiRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-20">
             <h2
@@ -185,7 +208,7 @@ See [[api-reference]] for endpoint details.
                   : "opacity-0 translate-y-4"
               }`}
             >
-              Agent memory as a wiki
+              Four primitives, one API
             </h2>
             <p
               className={`text-muted-foreground max-w-xl mb-12 transition-all duration-500 delay-100 ${
@@ -194,59 +217,64 @@ See [[api-reference]] for endpoint details.
                   : "opacity-0 translate-y-4"
               }`}
             >
-              Agents write what they learn as wiki pages with stable slugs.
-              Pages link to each other, forming a knowledge graph that
-              grows with every task. Humans browse the same wiki in a
-              markdown editor.
+              Everything an agent needs to store, organize, and share
+              structured knowledge — encrypted before it leaves your process.
             </p>
-            <div className="grid sm:grid-cols-3 gap-10">
+            <div className="grid sm:grid-cols-2 gap-10">
               <Feature
                 icon={BookOpen}
-                title="Slug-addressed pages"
-                description="Every document can have a human-readable slug. PUT /api/documents/by-slug/my-page creates or updates idempotently — perfect for agents that don't track IDs."
+                title="Wiki"
+                description="Agents write and link pages by slug, building a knowledge graph that grows with every task. PUT by slug creates or updates idempotently — no IDs to track."
                 inView={wikiInView}
                 delay={0}
               />
               <Feature
-                icon={Network}
-                title="Linked knowledge graph"
-                description="Reference other pages by slug in markdown. Agents build interconnected documentation, research notes, and runbooks that cross-reference each other."
+                icon={FileText}
+                title="Documents"
+                description="Long-form markdown documents with full edit history. Every revision is stored so you can diff, audit, and roll back. Rendered in-browser with formatting."
                 inView={wikiInView}
                 delay={1}
               />
               <Feature
-                icon={FileText}
-                title="Markdown + E2EE"
-                description="Content is markdown, rendered in the browser with full formatting. Everything is encrypted client-side — the server never sees plaintext."
+                icon={Table2}
+                title="Spreadsheets"
+                description="Structured tabular data, encrypted cell-by-cell. Agents create and update rows through the API. Humans view and edit in a familiar grid."
                 inView={wikiInView}
                 delay={2}
+              />
+              <Feature
+                icon={CircleDot}
+                title="Tickets"
+                description="Track tasks, bugs, and decisions with encrypted tickets. Status, priority, assignments, and threaded comments — all through the same signed API."
+                inView={wikiInView}
+                delay={3}
               />
             </div>
           </div>
         </section>
 
-        {/* Features */}
+        {/* Webhooks + cross-cutting */}
         <section className="border-t" ref={featuresRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-20">
             <div className="grid sm:grid-cols-3 gap-10">
               <Feature
-                icon={ShieldCheck}
-                title="End-to-end encrypted"
-                description="AES-256-GCM encryption happens entirely client-side. The server stores only ciphertext. No plaintext titles, content, or comments. Ever."
+                icon={Network}
+                title="Linked knowledge graph"
+                description="Reference other pages by slug in markdown. Agents build interconnected documentation that cross-references across docs, tickets, and wiki pages."
                 inView={featuresInView}
                 delay={0}
               />
               <Feature
-                icon={Terminal}
-                title="API-first"
-                description="Every operation is a REST call. No browser needed. Sign requests with your agent's Ed25519 key and go. Human web UI uses the same API."
+                icon={Webhook}
+                title="Webhook events"
+                description="Subscribe to document edits, ticket updates, comments, shares, and assignments. HMAC-signed payloads keep your integrations in sync."
                 inView={featuresInView}
                 delay={1}
               />
               <Feature
                 icon={Users}
-                title="Unlimited free identities"
-                description="Create as many cryptographic identities as you need. Each gets its own key pair. Share documents between agents and humans with ECDH key exchange."
+                title="Unlimited identities"
+                description="Create as many cryptographic identities as you need. Each gets its own key pair. Share content between agents and humans with ECDH key exchange."
                 inView={featuresInView}
                 delay={2}
               />
@@ -270,28 +298,28 @@ See [[api-reference]] for endpoint details.
               <Step
                 number="01"
                 title="Register an identity"
-                description="Generate Ed25519 + X25519 keys. Register via the API. Each agent or human gets their own identity."
+                description="Generate Ed25519 + X25519 keys. Register via the API. Each agent or human gets their own cryptographic identity."
                 inView={stepsInView}
                 delay={1}
               />
               <Step
                 number="02"
-                title="Write wiki pages"
-                description="PUT documents by slug. The API creates or updates idempotently. Content is encrypted before it leaves your process."
+                title="Create docs, sheets, or tickets"
+                description="POST encrypted content through the REST API. Or PUT wiki pages by slug for idempotent upserts. Agents never need to track IDs."
                 inView={stepsInView}
                 delay={2}
               />
               <Step
                 number="03"
                 title="Link and cross-reference"
-                description="Reference other pages by slug in markdown. Agents build a growing knowledge graph of interconnected documents."
+                description="Reference other pages by slug in markdown. Agents build a growing knowledge graph across documents, tickets, and wiki pages."
                 inView={stepsInView}
                 delay={3}
               />
               <Step
                 number="04"
                 title="Share across identities"
-                description="Grant access by wrapping the document's AES key with ECDH. Agents and humans collaborate on the same encrypted wiki."
+                description="Grant access by wrapping the content's AES key with ECDH. Agents and humans collaborate on the same encrypted workspace."
                 inView={stepsInView}
                 delay={4}
               />
@@ -332,10 +360,10 @@ See [[api-reference]] for endpoint details.
             }`}
           >
             <h2 className="text-2xl font-semibold tracking-tight mb-3">
-              Give your agents a memory
+              Give your agents a workspace
             </h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              An encrypted wiki they build and maintain themselves.
+              Docs, spreadsheets, tickets, and a wiki — encrypted and
               API-first. Open source. Free forever.
             </p>
             <SignInButton size="lg" />
