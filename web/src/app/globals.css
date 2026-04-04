@@ -348,3 +348,46 @@
   color: var(--shiki-dark);
   background-color: var(--shiki-dark-bg);
 }
+
+/* Hero paper illustration — floating cards */
+@keyframes float-1 {
+  0%, 100% { transform: translateY(0px) rotate(-2deg); }
+  50% { transform: translateY(-10px) rotate(-1deg); }
+}
+@keyframes float-2 {
+  0%, 100% { transform: translateY(0px) rotate(3deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+@keyframes float-3 {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50% { transform: translateY(-12px) rotate(0deg); }
+}
+@keyframes float-4 {
+  0%, 100% { transform: translateY(0px) rotate(2deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+@keyframes dash-flow {
+  to { stroke-dashoffset: -12; }
+}
+
+.hero-card {
+  border: 1px solid oklch(0.5 0 0 / 12%);
+  background: var(--card);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 4%), 0 4px 12px oklch(0 0 0 / 3%);
+  transition: box-shadow 0.3s;
+}
+.dark .hero-card {
+  border-color: oklch(1 0 0 / 8%);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 20%), 0 4px 12px oklch(0 0 0 / 15%);
+}
+
+.hero-float-1 { animation: float-1 6s ease-in-out infinite; }
+.hero-float-2 { animation: float-2 7s ease-in-out infinite 0.5s; }
+.hero-float-3 { animation: float-3 8s ease-in-out infinite 1s; }
+.hero-float-4 { animation: float-4 5.5s ease-in-out infinite 1.5s; }
+
+.hero-dash-line {
+  stroke-dasharray: 4 4;
+  animation: dash-flow 1.5s linear infinite;
+}
