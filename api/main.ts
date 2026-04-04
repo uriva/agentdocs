@@ -5,6 +5,7 @@ import { getIdentityPublicKeys } from "./db.ts";
 import { documentsRouter } from "./routes/documents.ts";
 import { identitiesRouter } from "./routes/identities.ts";
 import { ticketsRouter } from "./routes/tickets.ts";
+import { webhooksRouter } from "./routes/webhooks.ts";
 import { RegisterIdentityRequest } from "./schema.ts";
 import type { AppEnv } from "./types.ts";
 
@@ -103,6 +104,7 @@ app.use("/api/*", async (c, next) => {
 app.route("/api/documents", documentsRouter);
 app.route("/api/identities", identitiesRouter);
 app.route("/api/tickets", ticketsRouter);
+app.route("/api/webhooks", webhooksRouter);
 
 // ─── Public Routes (no auth required) ────────────────────────────────────────
 // Identity registration (requires InstantDB account token, not identity signature)

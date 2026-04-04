@@ -277,6 +277,68 @@ export const AssignTicketRequest = z.object({
   assigneeIdentityId: z.string().describe("Identity ID to assign the ticket to"),
 }).describe("Assign a ticket to an identity");
 
+// --- Webhooks ---
+
+const WebhookEventType = z.enum([
+  "document.edited",
+  "document.shared",
+  "ticket.updated",
+  "ticket.commented",
+  "ticket.shared",
+  "ticket.assigned",
+]).describe("Event type to subscribe to");
+
+const ResourceType = z.enum(["document", "ticket"]).describe("Resource type");
+
+export const CreateWebhookRequest = z.object({
+  url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
+  resourceType: ResourceType,
+  resourceId: z.string().describe("ID of the document or ticket to watch"),
+  events: z.array(WebhookEventType).min(1).describe("Event types to subscribe to"),
+}).describe("Subscribe to real-time events for a document or ticket");
+
+export const CreateWebhookResponse = z.object({
+  webhook: z.object({
+    id: z.string().describe("Webhook subscription ID"),
+    secret: z.string().describe(
+      "HMAC-SHA256 signing secret. Store this securely — it is only returned once. " +
+      "Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing " +
+      "to the X-Webhook-Signature header."
+    ),
+  }),
+}).describe("Newly created webhook subscription");
+
+export const ListWebhooksResponse = z.object({
+  webhooks: z.array(z.object({
+    id: z.string(),
+    url: z.string(),
+    resourceType: ResourceType,
+    resourceId: z.string(),
+    events: z.array(WebhookEventType),
+    active: z.boolean().describe("Whether the webhook is active (disabled after repeated failures)"),
+    createdAt: z.string().optional(),
+  })).describe("Webhook subscriptions for the authenticated identity"),
+}).describe("List of webhook subscriptions");
+
+export const DeleteWebhookResponse = z.object({
+  ok: z.literal(true),
+}).describe("Webhook deleted");
+
+export const WebhookPayloadSchema = z.object({
+  event: WebhookEventType,
+  resourceType: ResourceType,
+  resourceId: z.string().describe("ID of the affected document or ticket"),
+  actorIdentityId: z.string().describe("Identity that triggered the event"),
+  timestamp: z.string().describe("ISO 8601 timestamp of the event"),
+  data: z.record(z.unknown()).optional().describe(
+    "Optional plaintext metadata (e.g. new ticket status). " +
+    "Never contains encrypted content — fetch via the API to decrypt."
+  ),
+}).describe(
+  "Webhook payload delivered via POST. Verify authenticity using the " +
+  "X-Webhook-Signature header (HMAC-SHA256 of the raw JSON body with your secret)."
+);
+
 // --- Error ---
 
 export const ErrorResponse = z.object({
@@ -549,6 +611,43 @@ export const routes: RouteEntry[] = [
     response: OkResponse,
     successStatus: 200,
     pathParams: [{ name: "id", description: "Ticket ID" }],
+  },
+
+  // --- Webhooks ---
+  {
+    method: "GET",
+    path: "/api/webhooks",
+    summary: "List webhook subscriptions",
+    description:
+      "Returns all webhook subscriptions owned by the authenticated identity.",
+    auth: true,
+    response: ListWebhooksResponse,
+    successStatus: 200,
+  },
+  {
+    method: "POST",
+    path: "/api/webhooks",
+    summary: "Create a webhook subscription",
+    description:
+      "Subscribe to real-time events for a specific document or ticket. " +
+      "When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL " +
+      "with event metadata (never encrypted content). " +
+      "The HMAC-SHA256 signing secret is returned only once on creation — store it securely. " +
+      "Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).",
+    auth: true,
+    request: CreateWebhookRequest,
+    response: CreateWebhookResponse,
+    successStatus: 201,
+  },
+  {
+    method: "DELETE",
+    path: "/api/webhooks/:id",
+    summary: "Delete a webhook subscription",
+    description: "Permanently removes a webhook subscription. Deliveries in flight may still complete.",
+    auth: true,
+    response: DeleteWebhookResponse,
+    successStatus: 200,
+    pathParams: [{ name: "id", description: "Webhook subscription ID" }],
   },
 ];
 

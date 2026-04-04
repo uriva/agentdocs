@@ -18,6 +18,7 @@ import {
   AssignTicketRequest,
 } from "../schema.ts";
 import type { AppEnv } from "../types.ts";
+import { fireWebhooks } from "./webhooks.ts";
 
 export const ticketsRouter = new Hono<AppEnv>();
 
@@ -77,6 +78,13 @@ ticketsRouter.patch("/:id", async (c) => {
 
   const { status, priority } = parsed.data;
   await updateTicketMetadata({ ticketId, status, priority });
+
+  const identityId = c.get("identityId") as string;
+  fireWebhooks("ticket", ticketId, "ticket.updated", identityId, {
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+  });
+
   return c.json({ ok: true });
 });
 
@@ -102,6 +110,9 @@ ticketsRouter.put("/:id", async (c) => {
     algorithm,
   });
 
+  const identityId = c.get("identityId") as string;
+  fireWebhooks("ticket", ticketId, "ticket.updated", identityId);
+
   return c.json({ ok: true });
 });
 
@@ -126,6 +137,8 @@ ticketsRouter.post("/:id/comments", async (c) => {
     algorithm,
     authorIdentityId: identityId,
   });
+
+  fireWebhooks("ticket", ticketId, "ticket.commented", identityId);
 
   return c.json({ comment }, 201);
 });
@@ -160,6 +173,10 @@ ticketsRouter.post("/:id/share", async (c) => {
     algorithm,
   });
 
+  fireWebhooks("ticket", ticketId, "ticket.shared", grantorIdentityId, {
+    granteeIdentityId,
+  });
+
   return c.json({ accessGrant: grant }, 201);
 });
 
@@ -175,5 +192,11 @@ ticketsRouter.patch("/:id/assign", async (c) => {
 
   const { assigneeIdentityId } = parsed.data;
   await assignTicket({ ticketId, assigneeIdentityId });
+
+  const identityId = c.get("identityId") as string;
+  fireWebhooks("ticket", ticketId, "ticket.assigned", identityId, {
+    assigneeIdentityId,
+  });
+
   return c.json({ ok: true });
 });

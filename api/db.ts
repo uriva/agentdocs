@@ -554,3 +554,117 @@ export async function assignTicket(params: {
     ["update", "tickets", params.ticketId, { updatedAt: Date.now() }],
   ]);
 }
+
+// ─── Webhook Operations ───────────────────────────────────────────────────────
+
+export async function createWebhook(params: {
+  url: string;
+  resourceType: string;
+  resourceId: string;
+  events: string[];
+  secret: string;
+  ownerIdentityId: string;
+}): Promise<{ id: string }> {
+  const id = crypto.randomUUID();
+
+  await transact([
+    ["update", "webhooks", id, {
+      url: params.url,
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      events: JSON.stringify(params.events),
+      secret: params.secret,
+      active: true,
+      failureCount: 0,
+      createdAt: Date.now(),
+    }],
+    ["link", "webhooks", id, { owner: params.ownerIdentityId }],
+  ]);
+
+  return { id };
+}
+
+export async function getWebhooksForIdentity(
+  identityId: string,
+): Promise<unknown[]> {
+  const result = await query({
+    webhooks: {
+      $: { where: { "owner.id": identityId } },
+    },
+  });
+
+  return (result.webhooks as unknown[]) || [];
+}
+
+export async function deleteWebhook(
+  webhookId: string,
+  ownerIdentityId: string,
+): Promise<boolean> {
+  // Verify ownership first
+  const result = await query({
+    webhooks: {
+      $: { where: { id: webhookId, "owner.id": ownerIdentityId } },
+    },
+  });
+
+  const hooks = (result.webhooks as unknown[]) || [];
+  if (hooks.length === 0) return false;
+
+  await transact([
+    ["delete", "webhooks", webhookId, {}],
+  ]);
+
+  return true;
+}
+
+/** Find all active webhooks for a resource + event type */
+export async function getWebhooksForResource(
+  resourceType: string,
+  resourceId: string,
+): Promise<Array<{ id: string; url: string; secret: string; events: string[] }>> {
+  const result = await query({
+    webhooks: {
+      $: { where: { resourceType, resourceId, active: true } },
+    },
+  });
+
+  const hooks = (result.webhooks as Array<Record<string, unknown>>) || [];
+  return hooks.map((h) => ({
+    id: h.id as string,
+    url: h.url as string,
+    secret: h.secret as string,
+    events: JSON.parse(h.events as string) as string[],
+  }));
+}
+
+/** Increment failure count; deactivate after 10 consecutive failures */
+export async function recordWebhookFailure(webhookId: string): Promise<void> {
+  // Read current failure count
+  const result = await query({
+    webhooks: {
+      $: { where: { id: webhookId } },
+    },
+  });
+
+  const hooks = (result.webhooks as Array<Record<string, unknown>>) || [];
+  if (hooks.length === 0) return;
+
+  const current = (hooks[0].failureCount as number) || 0;
+  const newCount = current + 1;
+
+  const data: Record<string, unknown> = { failureCount: newCount };
+  if (newCount >= 10) {
+    data.active = false;
+  }
+
+  await transact([
+    ["update", "webhooks", webhookId, data],
+  ]);
+}
+
+/** Reset failure count on successful delivery */
+export async function recordWebhookSuccess(webhookId: string): Promise<void> {
+  await transact([
+    ["update", "webhooks", webhookId, { failureCount: 0 }],
+  ]);
+}

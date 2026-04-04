@@ -311,8 +311,51 @@ Request body (JSON):
 Response (200, JSON):
   - ok (true): 
 
+### GET /api/webhooks [auth required]
+List webhook subscriptions
+Returns all webhook subscriptions owned by the authenticated identity.
+Response (200, JSON):
+  - webhooks (array): Webhook subscriptions for the authenticated identity
+    Array items:
+    - id (string): 
+    - url (string): 
+    - resourceType (string): Resource type
+    - resourceId (string): 
+    - events (array): 
+    - active (boolean): Whether the webhook is active (disabled after repeated failures)
+    - createdAt (string): 
+
+### POST /api/webhooks [auth required]
+Create a webhook subscription
+Subscribe to real-time events for a specific document or ticket. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).
+Request body (JSON):
+  - url (string, required): HTTPS URL to receive webhook POST requests
+  - resourceType (document|ticket, required): Resource type
+  - resourceId (string, required): ID of the document or ticket to watch
+  - events (array, required): Event types to subscribe to
+Response (201, JSON):
+  - webhook (object): 
+    - id (string): Webhook subscription ID
+    - secret (string): HMAC-SHA256 signing secret. Store this securely — it is only returned once. Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing to the X-Webhook-Signature header.
+
+### DELETE /api/webhooks/:id [auth required]
+Delete a webhook subscription
+Permanently removes a webhook subscription. Deliveries in flight may still complete.
+Path params:
+  - id: Webhook subscription ID
+Response (200, JSON):
+  - ok (true): 
+
 ## Error format
 All errors return: { error: string }
+
+## Webhook payload format
+When an event fires, agentdocs POSTs JSON to your URL with:
+- Headers: X-Webhook-Signature (HMAC-SHA256 hex), X-Webhook-Event (event type)
+- Body: { event, resourceType, resourceId, actorIdentityId, timestamp, data? }
+- Verify: compute HMAC-SHA256(your_secret, raw_body) and compare to X-Webhook-Signature
+- Payloads contain only plaintext metadata — fetch encrypted content via the API
+- Webhooks auto-disable after 10 consecutive delivery failures
 
 ## Encryption model
 - Documents and tickets are E2E encrypted with AES-256-GCM

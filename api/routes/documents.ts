@@ -15,6 +15,7 @@ import {
   UpsertDocumentBySlugRequest,
 } from "../schema.ts";
 import type { AppEnv } from "../types.ts";
+import { fireWebhooks } from "./webhooks.ts";
 
 export const documentsRouter = new Hono<AppEnv>();
 
@@ -110,6 +111,8 @@ documentsRouter.put("/by-slug/:slug", async (c) => {
       algorithm,
       authorIdentityId: identityId,
     });
+
+    fireWebhooks("document", docId, "document.edited", identityId);
   }
 
   return c.json({ document: { id: docId }, created });
@@ -157,6 +160,8 @@ documentsRouter.post("/by-slug/:slug/edits", async (c) => {
     algorithm,
     authorIdentityId: identityId,
   });
+
+  fireWebhooks("document", doc.id as string, "document.edited", identityId);
 
   return c.json({ edit }, 201);
 });
@@ -219,6 +224,8 @@ documentsRouter.post("/:id/edits", async (c) => {
     authorIdentityId: identityId,
   });
 
+  fireWebhooks("document", documentId, "document.edited", identityId);
+
   return c.json({ edit }, 201);
 });
 
@@ -250,6 +257,10 @@ documentsRouter.post("/:id/share", async (c) => {
     iv,
     salt,
     algorithm,
+  });
+
+  fireWebhooks("document", documentId, "document.shared", grantorIdentityId, {
+    granteeIdentityId,
   });
 
   return c.json({ accessGrant: grant }, 201);

@@ -1347,6 +1347,148 @@
 <td></td>
 </tr>
 </tbody></table>
+<h3>Webhooks</h3>
+<p>Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the <code>X-Webhook-Signature</code> header.</p>
+<h3><code>GET /api/webhooks</code> 🔒</h3>
+<p>Returns all webhook subscriptions owned by the authenticated identity.</p>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>webhooks</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Webhook subscriptions for the authenticated identity</td>
+</tr>
+<tr>
+<td><code>[].id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].url</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].resourceType</code></td>
+<td><code>document</code> \</td>
+<td><code>ticket</code></td>
+<td><strong>required</strong></td>
+<td>Resource type</td>
+</tr>
+<tr>
+<td><code>[].resourceId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].events</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].active</code></td>
+<td>boolean</td>
+<td><strong>required</strong></td>
+<td>Whether the webhook is active (disabled after repeated failures)</td>
+</tr>
+<tr>
+<td><code>[].createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3><code>POST /api/webhooks</code> 🔒</h3>
+<p>Subscribe to real-time events for a specific document or ticket. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).</p>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>url</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>HTTPS URL to receive webhook POST requests</td>
+</tr>
+<tr>
+<td><code>resourceType</code></td>
+<td><code>document</code> \</td>
+<td><code>ticket</code></td>
+<td><strong>required</strong></td>
+<td>Resource type</td>
+</tr>
+<tr>
+<td><code>resourceId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>ID of the document or ticket to watch</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Event types to subscribe to</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>201</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>webhook</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>webhook.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Webhook subscription ID</td>
+</tr>
+<tr>
+<td><code>webhook.secret</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>HMAC-SHA256 signing secret. Store this securely — it is only returned once. Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing to the X-Webhook-Signature header.</td>
+</tr>
+</tbody></table>
+<h3><code>DELETE /api/webhooks/:id</code> 🔒</h3>
+<p>Permanently removes a webhook subscription. Deliveries in flight may still complete.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Webhook subscription ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>ok</code></td>
+<td>true</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+</tbody></table>
   <footer style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem;">
     Generated from <code>schema.ts</code> &mdash; <a href="https://github.com/uriva/agentdocs">GitHub</a>
   </footer>

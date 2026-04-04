@@ -468,3 +468,59 @@ Assigns a ticket to another identity.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `ok` | true | **required** |  |
+
+### Webhooks
+
+Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.
+
+### `GET /api/webhooks` 🔒
+
+Returns all webhook subscriptions owned by the authenticated identity.
+
+**Response** (`200`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `webhooks` | array | **required** | Webhook subscriptions for the authenticated identity |
+| `[].id` | string | **required** |  |
+| `[].url` | string | **required** |  |
+| `[].resourceType` | `document` \| `ticket` | **required** | Resource type |
+| `[].resourceId` | string | **required** |  |
+| `[].events` | array | **required** |  |
+| `[].active` | boolean | **required** | Whether the webhook is active (disabled after repeated failures) |
+| `[].createdAt` | string | optional |  |
+
+### `POST /api/webhooks` 🔒
+
+Subscribe to real-time events for a specific document or ticket. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | string | **required** | HTTPS URL to receive webhook POST requests |
+| `resourceType` | `document` \| `ticket` | **required** | Resource type |
+| `resourceId` | string | **required** | ID of the document or ticket to watch |
+| `events` | array | **required** | Event types to subscribe to |
+
+**Response** (`201`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `webhook` | object | **required** |  |
+| `webhook.id` | string | **required** | Webhook subscription ID |
+| `webhook.secret` | string | **required** | HMAC-SHA256 signing secret. Store this securely — it is only returned once. Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing to the X-Webhook-Signature header. |
+
+### `DELETE /api/webhooks/:id` 🔒
+
+Permanently removes a webhook subscription. Deliveries in flight may still complete.
+
+**Path parameters:**
+
+- `id` — Webhook subscription ID
+
+**Response** (`200`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ok` | true | **required** |  |

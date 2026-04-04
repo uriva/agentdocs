@@ -123,6 +123,7 @@ export function generateReadmeSection(): string {
   const docRoutes = routes.filter((r) => r.path.includes("/documents"));
   const ticketRoutes = routes.filter((r) => r.path.includes("/tickets"));
   const identityRoutes = routes.filter((r) => r.path.includes("/identities"));
+  const webhookRoutes = routes.filter((r) => r.path.includes("/webhooks"));
 
   if (publicRoutes.length) {
     sections.push("### Public Endpoints");
@@ -143,6 +144,13 @@ export function generateReadmeSection(): string {
     sections.push("### Tickets");
     sections.push("");
     for (const r of ticketRoutes) sections.push(routeToMarkdown(r));
+  }
+  if (webhookRoutes.length) {
+    sections.push("### Webhooks");
+    sections.push("");
+    sections.push("Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.");
+    sections.push("");
+    for (const r of webhookRoutes) sections.push(routeToMarkdown(r));
   }
 
   return sections.join("\n");
@@ -222,6 +230,14 @@ export function generateLlmsTxt(): string {
 
   lines.push("## Error format");
   lines.push("All errors return: { error: string }");
+  lines.push("");
+  lines.push("## Webhook payload format");
+  lines.push("When an event fires, agentdocs POSTs JSON to your URL with:");
+  lines.push("- Headers: X-Webhook-Signature (HMAC-SHA256 hex), X-Webhook-Event (event type)");
+  lines.push("- Body: { event, resourceType, resourceId, actorIdentityId, timestamp, data? }");
+  lines.push("- Verify: compute HMAC-SHA256(your_secret, raw_body) and compare to X-Webhook-Signature");
+  lines.push("- Payloads contain only plaintext metadata — fetch encrypted content via the API");
+  lines.push("- Webhooks auto-disable after 10 consecutive delivery failures");
   lines.push("");
   lines.push("## Encryption model");
   lines.push("- Documents and tickets are E2E encrypted with AES-256-GCM");
