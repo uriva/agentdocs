@@ -53,7 +53,7 @@ export default function DocPage() {
   const { active } = useIdentity();
   const [docCtx, setDocCtx] = useState<DocContext | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [mode, setMode] = useState<"edit" | "view">("edit");
+  const [mode, setMode] = useState<"edit" | "view">("view");
 
   // Text document state — derived from edits until user starts editing
   const [userContent, setUserContent] = useState("");
