@@ -90,17 +90,13 @@ function LandingPage() {
               </svg>
             </a>
             <a
-              href="https://agentdocs-api.uriva.deno.net/docs"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/docs"
               className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
             >
               Docs
             </a>
             <a
-              href="https://agentdocs-api.uriva.deno.net/llms.txt"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/llms.txt"
               className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
             >
               llms.txt
