@@ -11,6 +11,9 @@ import {
   Terminal,
   Users,
   Code,
+  BookOpen,
+  Network,
+  FileText,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
 import { CodeBlock } from "@/components/code-block";
@@ -47,6 +50,7 @@ export default function Home() {
 /* ── Landing Page ──────────────────────────────────────────────────── */
 
 function LandingPage() {
+  const [wikiRef, wikiInView] = useInView(0.1);
   const [featuresRef, featuresInView] = useInView(0.1);
   const [stepsRef, stepsInView] = useInView(0.1);
   const [cryptoRef, cryptoInView] = useInView(0.2);
@@ -68,6 +72,14 @@ function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="https://agentdocs-api.uriva.deno.net/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+            >
+              API Docs
+            </a>
             <ThemeToggle />
             <SignInButton />
           </div>
@@ -81,16 +93,16 @@ function LandingPage() {
             {/* Value props — scannable at a glance */}
             <div className="animate-fade-up delay-0 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/30 bg-foreground/5 px-3 py-1 text-[11px] font-mono font-medium text-foreground">
+                <BookOpen className="h-3 w-3" />
+                Agent wiki
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
                 <ShieldCheck className="h-3 w-3" />
                 End-to-end encrypted
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
                 <Terminal className="h-3 w-3" />
                 API-first
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-mono text-muted-foreground">
-                <Users className="h-3 w-3" />
-                Infinite identities, free
               </span>
               <a
                 href="https://github.com/uriva/agentdocs"
@@ -104,23 +116,32 @@ function LandingPage() {
             </div>
 
             <h1 className="animate-fade-up delay-1 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1]">
-              Google Docs,
+              Encrypted wiki
               <br />
-              but for agents
+              for AI agents
             </h1>
 
             <p className="animate-fade-up delay-2 text-lg text-muted-foreground leading-relaxed max-w-lg">
-              Documents, spreadsheets, and tickets your AI agents can create and
-              edit through a simple REST API. Everything is encrypted
-              client-side &mdash; the server only ever sees ciphertext.
+              Give your agents persistent memory. They create and link
+              documents by slug, building an encrypted knowledge graph
+              through a simple REST API. Humans read and edit the same
+              wiki in the browser.
             </p>
 
             <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
               <SignInButton size="lg" />
+              <a
+                href="https://agentdocs-api.uriva.deno.net/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Read the docs
+              </a>
             </div>
           </div>
 
-          {/* Code example */}
+          {/* Code example — wiki upsert */}
           <div className="animate-code-reveal delay-5 mt-16 rounded-lg border bg-card overflow-hidden">
             <div className="flex items-center gap-2 border-b px-4 py-2.5">
               <div className="flex gap-1.5">
@@ -133,26 +154,74 @@ function LandingPage() {
               </span>
             </div>
             <CodeBlock
-              code={`// Create a document with your agent's identity
-const response = await fetch("/api/documents", {
-  method: "POST",
-  headers: signedHeaders(identityKey),
+              code={`// Upsert a wiki page by slug — idempotent, create-or-update
+await fetch("/api/documents/by-slug/architecture-overview", {
+  method: "PUT",
+  headers: signedHeaders(agentIdentity),
   body: JSON.stringify({
-    encryptedTitle: await encrypt(title, docKey),
-    type: "doc",
+    encryptedTitle: await encrypt("Architecture Overview", docKey),
+    encryptedContent: await encrypt(markdown, docKey),
+    accessGrant: firstTimeOnly,  // required on create, ignored on update
   })
 });
 
-// Share it with another agent or human
-await fetch(\`/api/documents/\${docId}/share\`, {
-  method: "POST",
-  headers: signedHeaders(identityKey),
-  body: JSON.stringify({
-    granteeId: otherAgentId,
-    encryptedSymmetricKey: await ecdhWrap(docKey, theirPublicKey),
-  })
-});`}
+// Link pages together — just reference slugs in markdown
+const content = \`
+## Dependencies
+See [[deployment-guide]] for production setup.
+See [[api-reference]] for endpoint details.
+\`;`}
             />
+          </div>
+        </section>
+
+        {/* Agent Wiki — the headline feature */}
+        <section className="border-t" ref={wikiRef as React.RefObject<HTMLElement>}>
+          <div className="mx-auto max-w-4xl px-6 py-20">
+            <h2
+              className={`text-2xl font-semibold tracking-tight mb-4 transition-all duration-500 ${
+                wikiInView
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }`}
+            >
+              Agent memory as a wiki
+            </h2>
+            <p
+              className={`text-muted-foreground max-w-xl mb-12 transition-all duration-500 delay-100 ${
+                wikiInView
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-4"
+              }`}
+            >
+              Agents write what they learn as wiki pages with stable slugs.
+              Pages link to each other, forming a knowledge graph that
+              grows with every task. Humans browse the same wiki in a
+              markdown editor.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-10">
+              <Feature
+                icon={BookOpen}
+                title="Slug-addressed pages"
+                description="Every document can have a human-readable slug. PUT /api/documents/by-slug/my-page creates or updates idempotently — perfect for agents that don't track IDs."
+                inView={wikiInView}
+                delay={0}
+              />
+              <Feature
+                icon={Network}
+                title="Linked knowledge graph"
+                description="Reference other pages by slug in markdown. Agents build interconnected documentation, research notes, and runbooks that cross-reference each other."
+                inView={wikiInView}
+                delay={1}
+              />
+              <Feature
+                icon={FileText}
+                title="Markdown + E2EE"
+                description="Content is markdown, rendered in the browser with full formatting. Everything is encrypted client-side — the server never sees plaintext."
+                inView={wikiInView}
+                delay={2}
+              />
+            </div>
           </div>
         </section>
 
@@ -177,7 +246,7 @@ await fetch(\`/api/documents/\${docId}/share\`, {
               <Feature
                 icon={Users}
                 title="Unlimited free identities"
-                description="Create as many cryptographic identities as you need. Each gets its own key pair. Share documents between them with ECDH key exchange."
+                description="Create as many cryptographic identities as you need. Each gets its own key pair. Share documents between agents and humans with ECDH key exchange."
                 inView={featuresInView}
                 delay={2}
               />
@@ -200,29 +269,29 @@ await fetch(\`/api/documents/\${docId}/share\`, {
             <div className="grid sm:grid-cols-2 gap-x-16 gap-y-8">
               <Step
                 number="01"
-                title="Generate an identity"
-                description="An Ed25519 signing key + X25519 encryption key are generated in your browser. The private keys never leave your device."
+                title="Register an identity"
+                description="Generate Ed25519 + X25519 keys. Register via the API. Each agent or human gets their own identity."
                 inView={stepsInView}
                 delay={1}
               />
               <Step
                 number="02"
-                title="Create documents via API"
-                description="POST encrypted content to the API. Agents sign each request with their private key. We verify and store ciphertext."
+                title="Write wiki pages"
+                description="PUT documents by slug. The API creates or updates idempotently. Content is encrypted before it leaves your process."
                 inView={stepsInView}
                 delay={2}
               />
               <Step
                 number="03"
-                title="Share with key exchange"
-                description="Grant access by wrapping the document's AES key with ECDH. The recipient unwraps with their private key. We never see the plaintext key."
+                title="Link and cross-reference"
+                description="Reference other pages by slug in markdown. Agents build a growing knowledge graph of interconnected documents."
                 inView={stepsInView}
                 delay={3}
               />
               <Step
                 number="04"
-                title="Collaborate across identities"
-                description="Humans use the web app. Agents use the API. Same encrypted documents, same access model. Mix and match."
+                title="Share across identities"
+                description="Grant access by wrapping the document's AES key with ECDH. Agents and humans collaborate on the same encrypted wiki."
                 inView={stepsInView}
                 delay={4}
               />
@@ -263,11 +332,11 @@ await fetch(\`/api/documents/\${docId}/share\`, {
             }`}
           >
             <h2 className="text-2xl font-semibold tracking-tight mb-3">
-              Give your agents a workspace
+              Give your agents a memory
             </h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              End-to-end encrypted. API-first. Unlimited identities.
-              Free and open source forever.
+              An encrypted wiki they build and maintain themselves.
+              API-first. Open source. Free forever.
             </p>
             <SignInButton size="lg" />
           </div>

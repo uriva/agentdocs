@@ -9,11 +9,12 @@ import {
   ArrowLeft,
   Save,
   Clock,
-  User,
   Lock,
   FileText,
   Table2,
   History,
+  Eye,
+  Pencil,
 } from "lucide-react";
 import { ShareDialog } from "@/components/share-dialog";
 import { SpreadsheetEditor } from "@/components/spreadsheet-editor";
@@ -24,6 +25,8 @@ import {
   deserializeSpreadsheet,
 } from "@/lib/spreadsheet";
 import { EditHistoryPanel } from "@/components/edit-history-panel";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface DocContext {
   title: string;
@@ -50,6 +53,7 @@ export default function DocPage() {
   const { active } = useIdentity();
   const [docCtx, setDocCtx] = useState<DocContext | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [mode, setMode] = useState<"edit" | "view">("edit");
 
   // Text document state — derived from edits until user starts editing
   const [userContent, setUserContent] = useState("");
@@ -57,7 +61,9 @@ export default function DocPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Spreadsheet state — same pattern
-  const [userSheetData, setUserSheetData] = useState<SpreadsheetData | null>(null);
+  const [userSheetData, setUserSheetData] = useState<SpreadsheetData | null>(
+    null,
+  );
 
   // Common state
   const [saving, setSaving] = useState(false);
@@ -106,9 +112,7 @@ export default function DocPage() {
 
   const handleSave = useCallback(async () => {
     if (saving) return;
-    const payload = isSpreadsheet
-      ? serializeSpreadsheet(sheetData)
-      : content;
+    const payload = isSpreadsheet ? serializeSpreadsheet(sheetData) : content;
     if (!isSpreadsheet && !payload.trim()) return;
     setSaving(true);
     try {
@@ -194,6 +198,34 @@ export default function DocPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Edit / View toggle — only for text documents */}
+            {!isSpreadsheet && (
+              <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+                <button
+                  onClick={() => setMode("edit")}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+                    mode === "edit"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setMode("view")}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+                    mode === "view"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Eye className="h-3 w-3" />
+                  View
+                </button>
+              </div>
+            )}
+
             {lastSaved && (
               <span className="text-[10px] font-mono text-muted-foreground/50 hidden sm:flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -218,26 +250,28 @@ export default function DocPage() {
                 identity={active}
               />
             )}
-            <Button
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={handleSave}
-              disabled={saving || !canSave}
-            >
-              {saving ? (
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              {saving ? "Saving..." : "Save"}
-            </Button>
+            {mode === "edit" && (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={handleSave}
+                disabled={saving || !canSave}
+              >
+                {saving ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
       {/* ── Editor + History ──────────────────────────────────────── */}
-      <div className="flex-1 flex">
-        <main className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex flex-col min-w-0 overflow-auto">
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -246,7 +280,7 @@ export default function DocPage() {
             <div className="flex-1 flex flex-col">
               <SpreadsheetEditor data={sheetData} onChange={handleSheetChange} />
             </div>
-          ) : (
+          ) : mode === "edit" ? (
             <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
               <textarea
                 ref={textareaRef}
@@ -256,6 +290,20 @@ export default function DocPage() {
                 className="flex-1 w-full resize-none bg-transparent py-6 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/30 font-[family-name:var(--font-body)]"
                 spellCheck
               />
+            </div>
+          ) : (
+            <div className="flex-1 mx-auto w-full max-w-3xl px-6 py-6 overflow-auto">
+              {content.trim() ? (
+                <div className="prose-agentdocs">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground/40 italic">
+                  Nothing to preview — start writing in edit mode.
+                </p>
+              )}
             </div>
           )}
         </main>

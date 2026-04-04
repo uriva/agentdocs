@@ -21,6 +21,10 @@ const iv = z.string().describe("Base64-encoded initialization vector");
 const algorithm = z.string().describe("Encryption algorithm identifier (e.g. AES-GCM-256)");
 /** Base64-encoded Ed25519 signature */
 const signature = z.string().describe("Base64-encoded Ed25519 signature");
+/** URL-safe slug for wiki-style document addressing */
+const slug = z.string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .describe("URL-safe slug (lowercase alphanumeric + hyphens, e.g. 'project-roadmap')");
 
 // ─── Shared sub-schemas ─────────────────────────────────────────────────────
 
@@ -84,6 +88,7 @@ export const ListDocumentsResponse = z.object({
     encryptedTitle: encrypted,
     encryptedTitleIv: iv,
     algorithm,
+    slug: z.string().optional().describe("Wiki slug (plaintext) if set"),
     createdAt: z.string().optional(),
   })).describe("Documents the identity has access to"),
 }).describe("List of accessible documents");
@@ -93,6 +98,7 @@ export const CreateDocumentRequest = z.object({
   encryptedTitle: encrypted.describe("Encrypted document title"),
   encryptedTitleIv: iv.describe("IV for the encrypted title"),
   algorithm,
+  slug: slug.optional().describe("Optional slug for wiki-style addressing (plaintext, unique per identity)"),
   accessGrant: AccessGrantInput.describe("Access grant for the creator"),
 }).describe("Create a new encrypted document");
 
@@ -138,6 +144,44 @@ export const ShareDocumentResponse = z.object({
     id: z.string().describe("Access grant ID"),
   }),
 }).describe("Newly created access grant");
+
+// --- Wiki (slug-addressed documents) ---
+
+export const GetDocumentBySlugResponse = z.object({
+  document: z.object({
+    id: z.string().describe("Document ID"),
+    type: z.enum(["doc", "spreadsheet"]),
+    slug: z.string().describe("Document slug"),
+    encryptedTitle: encrypted,
+    encryptedTitleIv: iv,
+    algorithm,
+    createdAt: z.string().optional(),
+  }),
+}).describe("Document resolved by slug");
+
+export const UpsertDocumentBySlugRequest = z.object({
+  encryptedTitle: encrypted.describe("Encrypted document title"),
+  encryptedTitleIv: iv.describe("IV for the encrypted title"),
+  algorithm,
+  accessGrant: AccessGrantInput.optional().describe(
+    "Access grant for the creator (required on first create, ignored on update)"
+  ),
+  encryptedContent: encrypted.optional().describe(
+    "Encrypted document content — if provided, an edit is appended automatically"
+  ),
+  encryptedContentIv: iv.optional().describe("IV for the encrypted content"),
+  signature: signature.optional().describe("Ed25519 signature over the plaintext content"),
+}).describe(
+  "Upsert a document by slug. Creates the document if it doesn't exist, " +
+  "updates the title if it does. Optionally appends content as an edit in the same call."
+);
+
+export const UpsertDocumentBySlugResponse = z.object({
+  document: z.object({
+    id: z.string().describe("Document ID (stable across upserts)"),
+  }),
+  created: z.boolean().describe("True if the document was newly created, false if updated"),
+}).describe("Upsert result");
 
 // --- Tickets ---
 
@@ -354,6 +398,63 @@ export const routes: RouteEntry[] = [
     response: ShareDocumentResponse,
     successStatus: 201,
     pathParams: [{ name: "id", description: "Document ID" }],
+  },
+
+  // --- Wiki (slug-addressed documents) ---
+  {
+    method: "GET",
+    path: "/api/documents/by-slug/:slug",
+    summary: "Get document by slug",
+    description:
+      "Resolve a document by its plaintext slug. Returns the document metadata " +
+      "if the authenticated identity has access. Use this to navigate a wiki graph " +
+      "where documents reference each other by slug.",
+    auth: true,
+    response: GetDocumentBySlugResponse,
+    successStatus: 200,
+    pathParams: [{ name: "slug", description: "Document slug (e.g. 'project-roadmap')" }],
+  },
+  {
+    method: "PUT",
+    path: "/api/documents/by-slug/:slug",
+    summary: "Upsert document by slug",
+    description:
+      "The primary wiki/agent-memory endpoint. Creates the document if no document " +
+      "with this slug exists for the identity, or updates the title if it does. " +
+      "Optionally appends an encrypted content edit in the same call. " +
+      "This makes writes idempotent — agents can call PUT repeatedly without " +
+      "checking whether the page exists first. " +
+      "On create, accessGrant is required. On update, it is ignored.",
+    auth: true,
+    request: UpsertDocumentBySlugRequest,
+    response: UpsertDocumentBySlugResponse,
+    successStatus: 200,
+    pathParams: [{ name: "slug", description: "Document slug (e.g. 'project-roadmap')" }],
+  },
+  {
+    method: "GET",
+    path: "/api/documents/by-slug/:slug/edits",
+    summary: "List edits by slug",
+    description:
+      "Returns the full edit history for a slug-addressed document. " +
+      "Equivalent to GET /api/documents/:id/edits but resolved via slug.",
+    auth: true,
+    response: ListEditsResponse,
+    successStatus: 200,
+    pathParams: [{ name: "slug", description: "Document slug" }],
+  },
+  {
+    method: "POST",
+    path: "/api/documents/by-slug/:slug/edits",
+    summary: "Add edit by slug",
+    description:
+      "Append an encrypted content edit to a slug-addressed document. " +
+      "Equivalent to POST /api/documents/:id/edits but resolved via slug.",
+    auth: true,
+    request: CreateEditRequest,
+    response: CreateEditResponse,
+    successStatus: 201,
+    pathParams: [{ name: "slug", description: "Document slug" }],
   },
 
   // --- Tickets ---

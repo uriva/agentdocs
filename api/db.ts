@@ -119,6 +119,7 @@ export async function createDocument(params: {
   encryptedTitleIv: string;
   algorithm: string;
   creatorIdentityId: string;
+  slug?: string;
   accessGrant: {
     encryptedSymmetricKey: string;
     iv: string;
@@ -129,15 +130,18 @@ export async function createDocument(params: {
   const docId = crypto.randomUUID();
   const grantId = crypto.randomUUID();
 
+  const docData: Record<string, unknown> = {
+    type: params.type,
+    encryptedTitle: params.encryptedTitle,
+    encryptedTitleIv: params.encryptedTitleIv,
+    algorithm: params.algorithm,
+    createdAt: Date.now(),
+  };
+  if (params.slug) docData.slug = params.slug;
+
   await transact([
     // Create the document
-    ["update", "documents", docId, {
-      type: params.type,
-      encryptedTitle: params.encryptedTitle,
-      encryptedTitleIv: params.encryptedTitleIv,
-      algorithm: params.algorithm,
-      createdAt: Date.now(),
-    }],
+    ["update", "documents", docId, docData],
     // Link document to creator
     ["link", "documents", docId, { creator: params.creatorIdentityId }],
     // Create access grant for the creator
@@ -155,6 +159,56 @@ export async function createDocument(params: {
   ]);
 
   return { id: docId };
+}
+
+/** Look up a document by its plaintext slug (scoped to an identity's accessible docs) */
+export async function getDocumentBySlug(
+  slug: string,
+  identityId: string,
+): Promise<Record<string, unknown> | null> {
+  // Query documents matching the slug, then verify the identity has access
+  const result = await query({
+    documents: {
+      $: { where: { slug } },
+      creator: {},
+    },
+  });
+
+  const docs = (result.documents as Array<Record<string, unknown>>) || [];
+  if (docs.length === 0) return null;
+
+  // Check that the requesting identity has an access grant for this document
+  for (const doc of docs) {
+    const docId = doc.id as string;
+    const grantResult = await query({
+      accessGrants: {
+        $: { where: { "grantee.id": identityId, "document.id": docId } },
+      },
+    });
+    const grants = (grantResult.accessGrants as unknown[]) || [];
+    if (grants.length > 0) {
+      return doc;
+    }
+  }
+
+  return null;
+}
+
+/** Update document content by its ID (for upsert-by-slug flow) */
+export async function updateDocumentContent(params: {
+  documentId: string;
+  encryptedTitle: string;
+  encryptedTitleIv: string;
+  algorithm: string;
+}): Promise<void> {
+  await transact([
+    ["update", "documents", params.documentId, {
+      encryptedTitle: params.encryptedTitle,
+      encryptedTitleIv: params.encryptedTitleIv,
+      algorithm: params.algorithm,
+      updatedAt: Date.now(),
+    }],
+  ]);
 }
 
 export async function addEdit(params: {
