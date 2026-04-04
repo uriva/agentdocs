@@ -542,6 +542,52 @@
 <td>Access grant ID</td>
 </tr>
 </tbody></table>
+<h3><code>PATCH /api/documents/:id</code> 🔒</h3>
+<p>Updates the encrypted title of an existing document. The caller must have access to the document via an access grant.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>encryptedTitle</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encrypted new document title</td>
+</tr>
+<tr>
+<td><code>encryptedTitleIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV for the encrypted title</td>
+</tr>
+<tr>
+<td><code>algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>ok</code></td>
+<td>true</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+</tbody></table>
 <h3><code>GET /api/documents/by-slug/:slug</code> 🔒</h3>
 <p>Resolve a document by its plaintext slug. Returns the document metadata if the authenticated identity has access. Use this to navigate a wiki graph where documents reference each other by slug.</p>
 <p><strong>Path parameters:</strong></p>

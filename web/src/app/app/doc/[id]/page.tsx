@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIdentity } from "@/hooks/use-identity";
-import { useDocumentEdits } from "@/hooks/use-documents";
+import { useDocumentEdits, renameDocument } from "@/hooks/use-documents";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -54,6 +55,12 @@ export default function DocPage() {
   const [docCtx, setDocCtx] = useState<DocContext | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [mode, setMode] = useState<"edit" | "view">("view");
+
+  // Inline title rename state
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [renamingSaving, setRenamingSaving] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Text document state — derived from edits until user starts editing
   const [userContent, setUserContent] = useState("");
@@ -188,9 +195,56 @@ export default function DocPage() {
               ) : (
                 <FileText className="h-4 w-4 text-muted-foreground/60" />
               )}
-              <span className="text-sm font-medium truncate max-w-[300px]">
-                {docCtx.title}
-              </span>
+              {editingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === "Escape") {
+                      setEditingTitle(false);
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = titleDraft.trim();
+                      if (!trimmed || trimmed === docCtx.title || !active) {
+                        setEditingTitle(false);
+                        return;
+                      }
+                      setRenamingSaving(true);
+                      try {
+                        await renameDocument(docId, trimmed, docCtx.docKey, active);
+                        setDocCtx({ ...docCtx, title: trimmed });
+                        // Update sessionStorage so navigating back and forth keeps the new title
+                        sessionStorage.setItem(
+                          `agentdocs:doc:${docId}`,
+                          JSON.stringify({ ...docCtx, title: trimmed }),
+                        );
+                        toast.success("Title updated");
+                      } catch {
+                        toast.error("Failed to rename");
+                      } finally {
+                        setRenamingSaving(false);
+                        setEditingTitle(false);
+                      }
+                    }
+                  }}
+                  onBlur={() => setEditingTitle(false)}
+                  disabled={renamingSaving}
+                  className="text-sm font-medium bg-transparent border-b border-foreground/30 outline-none max-w-[300px] px-0 py-0"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="text-sm font-medium truncate max-w-[300px] cursor-pointer hover:underline decoration-muted-foreground/30 underline-offset-2"
+                  onClick={() => {
+                    setTitleDraft(docCtx.title);
+                    setEditingTitle(true);
+                  }}
+                  title="Click to rename"
+                >
+                  {docCtx.title}
+                </span>
+              )}
               <span className="text-[10px] font-mono text-muted-foreground/50 hidden sm:inline">
                 e2ee
               </span>

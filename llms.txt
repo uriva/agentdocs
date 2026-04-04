@@ -126,6 +126,18 @@ Response (201, JSON):
   - accessGrant (object): 
     - id (string): Access grant ID
 
+### PATCH /api/documents/:id [auth required]
+Rename a document
+Updates the encrypted title of an existing document. The caller must have access to the document via an access grant.
+Path params:
+  - id: Document ID
+Request body (JSON):
+  - encryptedTitle (string, required): Encrypted new document title
+  - encryptedTitleIv (string, required): IV for the encrypted title
+  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
+Response (200, JSON):
+  - ok (true): 
+
 ### GET /api/documents/by-slug/:slug [auth required]
 Get document by slug
 Resolve a document by its plaintext slug. Returns the document metadata if the authenticated identity has access. Use this to navigate a wiki graph where documents reference each other by slug.

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIdentity } from "@/hooks/use-identity";
 import {
   useTicketDetail,
+  renameTicket,
   type TicketStatus,
   type TicketPriority,
 } from "@/hooks/use-tickets";
@@ -79,6 +80,12 @@ export default function TicketPage() {
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [commentText, setCommentText] = useState("");
   const [addingComment, setAddingComment] = useState(false);
+
+  // Inline title rename state
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [renamingSaving, setRenamingSaving] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const ctx = getTicketContext(ticketId);
@@ -173,9 +180,55 @@ export default function TicketPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium truncate max-w-[300px]">
-                {ticketCtx.title}
-              </span>
+              {editingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === "Escape") {
+                      setEditingTitle(false);
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = titleDraft.trim();
+                      if (!trimmed || trimmed === ticketCtx.title || !active) {
+                        setEditingTitle(false);
+                        return;
+                      }
+                      setRenamingSaving(true);
+                      try {
+                        await renameTicket(ticketId, trimmed, ticketCtx.ticketKey, active);
+                        setTicketCtx({ ...ticketCtx, title: trimmed });
+                        sessionStorage.setItem(
+                          `agentdocs:ticket:${ticketId}`,
+                          JSON.stringify({ ...ticketCtx, title: trimmed }),
+                        );
+                        toast.success("Title updated");
+                      } catch {
+                        toast.error("Failed to rename");
+                      } finally {
+                        setRenamingSaving(false);
+                        setEditingTitle(false);
+                      }
+                    }
+                  }}
+                  onBlur={() => setEditingTitle(false)}
+                  disabled={renamingSaving}
+                  className="text-sm font-medium bg-transparent border-b border-foreground/30 outline-none max-w-[300px] px-0 py-0"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="text-sm font-medium truncate max-w-[300px] cursor-pointer hover:underline decoration-muted-foreground/30 underline-offset-2"
+                  onClick={() => {
+                    setTitleDraft(ticketCtx.title);
+                    setEditingTitle(true);
+                  }}
+                  title="Click to rename"
+                >
+                  {ticketCtx.title}
+                </span>
+              )}
               <span className="text-[10px] font-mono text-muted-foreground/50 hidden sm:inline">
                 e2ee
               </span>

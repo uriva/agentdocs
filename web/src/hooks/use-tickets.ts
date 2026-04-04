@@ -197,6 +197,26 @@ export function useTickets(identity: StoredIdentity | null) {
   return { tickets, loading, error, refresh, createTicket };
 }
 
+// ─── renameTicket: standalone helper (no hook state needed) ──────────────────
+
+export async function renameTicket(
+  ticketId: string,
+  newTitle: string,
+  ticketKey: string,
+  identity: StoredIdentity,
+): Promise<void> {
+  const encTitle = await symmetricEncrypt(newTitle, ticketKey);
+  await api(`/tickets/${ticketId}`, {
+    method: "PATCH",
+    identity,
+    body: {
+      encryptedTitle: encTitle.ciphertext,
+      encryptedTitleIv: encTitle.iv,
+      algorithm: encTitle.algorithm,
+    },
+  });
+}
+
 // ─── useTicketDetail: load a specific ticket's body + comments ──────────────
 
 export function useTicketDetail(

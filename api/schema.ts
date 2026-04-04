@@ -145,6 +145,18 @@ export const ShareDocumentResponse = z.object({
   }),
 }).describe("Newly created access grant");
 
+// --- Rename / Update Document Title ---
+
+export const UpdateDocumentTitleRequest = z.object({
+  encryptedTitle: encrypted.describe("Encrypted new document title"),
+  encryptedTitleIv: iv.describe("IV for the encrypted title"),
+  algorithm,
+}).describe("Update the encrypted title of an existing document");
+
+export const UpdateDocumentTitleResponse = z.object({
+  ok: z.literal(true),
+}).describe("Title updated successfully");
+
 // --- Wiki (slug-addressed documents) ---
 
 export const GetDocumentBySlugResponse = z.object({
@@ -222,9 +234,12 @@ export const CreateTicketResponse = z.object({
 export const UpdateTicketMetadataRequest = z.object({
   status: TicketStatus.optional(),
   priority: TicketPriority.optional(),
-}).refine((d: { status?: string; priority?: string }) => d.status || d.priority, {
-  message: "At least one of status or priority must be provided",
-}).describe("Update ticket status and/or priority (plaintext fields, no re-encryption needed)");
+  encryptedTitle: encrypted.optional().describe("Re-encrypted ticket title"),
+  encryptedTitleIv: iv.optional().describe("New IV for the encrypted title"),
+  algorithm: algorithm.optional(),
+}).refine((d: { status?: string; priority?: string; encryptedTitle?: string }) => d.status || d.priority || d.encryptedTitle, {
+  message: "At least one of status, priority, or encryptedTitle must be provided",
+}).describe("Update ticket metadata: status, priority, and/or rename the encrypted title");
 
 export const UpdateTicketContentRequest = z.object({
   encryptedTitle: encrypted.describe("Re-encrypted ticket title"),
@@ -459,6 +474,19 @@ export const routes: RouteEntry[] = [
     request: ShareDocumentRequest,
     response: ShareDocumentResponse,
     successStatus: 201,
+    pathParams: [{ name: "id", description: "Document ID" }],
+  },
+  {
+    method: "PATCH",
+    path: "/api/documents/:id",
+    summary: "Rename a document",
+    description:
+      "Updates the encrypted title of an existing document. " +
+      "The caller must have access to the document via an access grant.",
+    auth: true,
+    request: UpdateDocumentTitleRequest,
+    response: UpdateDocumentTitleResponse,
+    successStatus: 200,
     pathParams: [{ name: "id", description: "Document ID" }],
   },
 

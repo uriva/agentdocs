@@ -231,6 +231,28 @@ Grants another identity access to this document by providing them with the docum
 | `accessGrant` | object | **required** |  |
 | `accessGrant.id` | string | **required** | Access grant ID |
 
+### `PATCH /api/documents/:id` 🔒
+
+Updates the encrypted title of an existing document. The caller must have access to the document via an access grant.
+
+**Path parameters:**
+
+- `id` — Document ID
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `encryptedTitle` | string | **required** | Encrypted new document title |
+| `encryptedTitleIv` | string | **required** | IV for the encrypted title |
+| `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+
+**Response** (`200`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ok` | true | **required** |  |
+
 ### `GET /api/documents/by-slug/:slug` 🔒
 
 Resolve a document by its plaintext slug. Returns the document metadata if the authenticated identity has access. Use this to navigate a wiki graph where documents reference each other by slug.

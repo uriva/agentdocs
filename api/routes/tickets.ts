@@ -76,8 +76,8 @@ ticketsRouter.patch("/:id", async (c) => {
     return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  const { status, priority } = parsed.data;
-  await updateTicketMetadata({ ticketId, status, priority });
+  const { status, priority, encryptedTitle, encryptedTitleIv, algorithm } = parsed.data;
+  await updateTicketMetadata({ ticketId, status, priority, encryptedTitle, encryptedTitleIv, algorithm });
 
   const identityId = c.get("identityId") as string;
   fireWebhooks("ticket", ticketId, "ticket.updated", identityId, {

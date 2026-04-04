@@ -184,6 +184,26 @@ export function useDocuments(identity: StoredIdentity | null) {
   return { documents, loading, error, refresh, createDocument };
 }
 
+// ─── renameDocument: standalone helper (no hook state needed) ────────────────
+
+export async function renameDocument(
+  documentId: string,
+  newTitle: string,
+  docKey: string,
+  identity: StoredIdentity,
+): Promise<void> {
+  const encTitle = await symmetricEncrypt(newTitle, docKey);
+  await api(`/documents/${documentId}`, {
+    method: "PATCH",
+    identity,
+    body: {
+      encryptedTitle: encTitle.ciphertext,
+      encryptedTitleIv: encTitle.iv,
+      algorithm: encTitle.algorithm,
+    },
+  });
+}
+
 // ─── useDocumentEdits: load/add edits for a specific document ────────────────
 
 export function useDocumentEdits(

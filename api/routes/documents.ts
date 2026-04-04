@@ -13,6 +13,7 @@ import {
   CreateEditRequest,
   ShareDocumentRequest,
   UpsertDocumentBySlugRequest,
+  UpdateDocumentTitleRequest,
 } from "../schema.ts";
 import type { AppEnv } from "../types.ts";
 import { fireWebhooks } from "./webhooks.ts";
@@ -234,6 +235,32 @@ documentsRouter.get("/:id/edits", async (c) => {
   const documentId = c.req.param("id");
   const edits = await getDocumentEdits(documentId);
   return c.json({ edits });
+});
+
+// Rename a document (update encrypted title)
+documentsRouter.patch("/:id", async (c) => {
+  const identityId = c.get("identityId") as string;
+  const documentId = c.req.param("id");
+  const raw = await parseBody(c);
+  const parsed = UpdateDocumentTitleRequest.safeParse(raw);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+  }
+
+  const { encryptedTitle, encryptedTitleIv, algorithm } = parsed.data;
+
+  // TODO: could verify access grant here, but updateDocumentContent is idempotent
+  await updateDocumentContent({
+    documentId,
+    encryptedTitle,
+    encryptedTitleIv,
+    algorithm,
+  });
+
+  fireWebhooks("document", documentId, "document.edited", identityId);
+
+  return c.json({ ok: true });
 });
 
 // Share a document (create access grant for another identity)

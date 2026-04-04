@@ -400,10 +400,18 @@ export async function updateTicketMetadata(params: {
   ticketId: string;
   status?: string;
   priority?: string;
+  encryptedTitle?: string;
+  encryptedTitleIv?: string;
+  algorithm?: string;
 }): Promise<void> {
   const data: Record<string, unknown> = { updatedAt: Date.now() };
   if (params.status) data.status = params.status;
   if (params.priority) data.priority = params.priority;
+  if (params.encryptedTitle && params.encryptedTitleIv) {
+    data.encryptedTitle = params.encryptedTitle;
+    data.encryptedTitleIv = params.encryptedTitleIv;
+    if (params.algorithm) data.algorithm = params.algorithm;
+  }
 
   await transact([
     ["update", "tickets", params.ticketId, data],
