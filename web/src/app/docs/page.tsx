@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "agentdocs — API Reference",
   description:
@@ -483,7 +485,7 @@ function ResponseRow({
 
 export default async function DocsPage() {
   const res = await fetch(`${API_BASE}/llms.txt`, {
-    next: { revalidate: 3600 },
+    cache: "no-store",
   });
 
   if (!res.ok) {
