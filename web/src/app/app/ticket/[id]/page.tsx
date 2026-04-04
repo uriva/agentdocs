@@ -30,7 +30,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -425,17 +424,21 @@ function ShareTicketDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
-    >
-      <DialogTrigger
-        render={<Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" />}
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        onClick={() => setOpen(true)}
       >
         <Share2 className="h-3.5 w-3.5" />
         Share
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
+      >
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg tracking-tight">
             Share Ticket
@@ -502,5 +505,6 @@ function ShareTicketDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

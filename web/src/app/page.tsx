@@ -1,12 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/use-auth";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
 import {
-  Lock,
-  ArrowRight,
   ShieldCheck,
   Terminal,
   Users,
@@ -20,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
 import { CodeBlock } from "@/components/code-block";
+import { SiteHeader, SignInButton } from "@/components/site-header";
 
 /* ── Scroll-triggered animation hook ─────────────────────────────── */
 
@@ -64,48 +59,7 @@ function LandingPage() {
 
   return (
     <div className="grain flex flex-col min-h-full">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm animate-fade-in">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-foreground flex items-center justify-center">
-                <Lock className="h-3 w-3 text-background" />
-              </div>
-              <span className="text-sm font-semibold tracking-tight">
-                agentdocs
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="https://github.com/uriva/agentdocs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="GitHub"
-            >
-              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-              </svg>
-            </a>
-            <a
-              href="/docs"
-              className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
-            >
-              Docs
-            </a>
-            <a
-              href="/llms.txt"
-              className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
-            >
-              llms.txt
-            </a>
-            <ThemeToggle />
-            <SignInButton />
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <main className="flex-1">
@@ -766,118 +720,4 @@ function Step({
   );
 }
 
-function SignInButton({ size = "default" }: { size?: "default" | "lg" }) {
-  const { user, sendMagicCode, signInWithMagicCode } = useAuth();
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [loading, setLoading] = useState(false);
 
-  // Already signed in — show "Go to App"
-  if (user) {
-    return (
-      <Button
-        size={size === "lg" ? "lg" : "default"}
-        className={size === "lg" ? "h-11 px-6 gap-2" : "h-8 px-3 gap-1.5 text-xs"}
-        onClick={() => router.push("/app")}
-      >
-        Go to App
-        <ArrowRight className="h-3.5 w-3.5" />
-      </Button>
-    );
-  }
-
-  async function handleSendCode() {
-    if (!email.trim()) return;
-    setLoading(true);
-    try {
-      await sendMagicCode(email.trim());
-      setStep("code");
-    } catch {
-      // toast not available on landing page, use alert
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyCode() {
-    if (!code.trim()) return;
-    setLoading(true);
-    try {
-      await signInWithMagicCode(email.trim(), code.trim());
-      router.push("/app");
-    } catch {
-      setLoading(false);
-    }
-  }
-
-  if (!open) {
-    return (
-      <Button
-        size={size === "lg" ? "lg" : "default"}
-        className={size === "lg" ? "h-11 px-6 gap-2" : "h-8 px-3 gap-1.5 text-xs"}
-        onClick={() => setOpen(true)}
-      >
-        Get Started
-        <ArrowRight className="h-3.5 w-3.5" />
-      </Button>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      {step === "email" ? (
-        <>
-          <input
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
-            autoFocus
-            className="h-8 w-52 rounded-lg border bg-background px-2.5 text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
-          />
-          <Button
-            size="sm"
-            className="h-8 px-3 text-xs"
-            onClick={handleSendCode}
-            disabled={!email.trim() || loading}
-          >
-            {loading ? "..." : "Send Code"}
-          </Button>
-        </>
-      ) : (
-        <>
-          <input
-            type="text"
-            placeholder="Code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleVerifyCode()}
-            autoFocus
-            className="h-8 w-28 rounded-lg border bg-background px-2.5 text-xs font-mono text-center tracking-widest outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
-          />
-          <Button
-            size="sm"
-            className="h-8 px-3 text-xs"
-            onClick={handleVerifyCode}
-            disabled={!code.trim() || loading}
-          >
-            {loading ? "..." : "Verify"}
-          </Button>
-          <button
-            onClick={() => {
-              setStep("email");
-              setCode("");
-            }}
-            className="text-[10px] text-muted-foreground hover:text-foreground"
-          >
-            back
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
