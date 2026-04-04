@@ -81,12 +81,7 @@ export function IdentitySwitcher({
       />
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
-          render={
-            <button
-              type="button"
-              className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-            />
-          }
+          className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           <span
             className="h-2 w-2 rounded-full bg-foreground shrink-0"

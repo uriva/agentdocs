@@ -138,7 +138,7 @@ export default function DocPage() {
 
   if (!docCtx) {
     return (
-      <div className="grain flex flex-col min-h-full">
+      <div className="grain flex flex-col flex-1">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 max-w-sm px-6">
             <div className="h-12 w-12 mx-auto rounded-lg bg-muted/50 border border-border flex items-center justify-center">
@@ -165,7 +165,7 @@ export default function DocPage() {
   const canSave = isSpreadsheet || content.trim().length > 0;
 
   return (
-    <div className="grain flex flex-col min-h-full">
+    <div className="grain flex flex-col flex-1">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">

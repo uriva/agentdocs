@@ -50,7 +50,7 @@ export default function AppPage() {
 
   if (authLoading) {
     return (
-      <div className="grain flex flex-col min-h-full">
+      <div className="grain flex flex-col flex-1">
         <div className="flex-1 flex items-center justify-center">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
         </div>
@@ -113,7 +113,7 @@ function AppShell() {
   }, [loading, importExisting]);
 
   return (
-    <div className="grain flex flex-col min-h-full">
+    <div className="grain flex flex-col flex-1">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
