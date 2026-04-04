@@ -83,26 +83,32 @@ export default function DocPage() {
     setDocCtx(ctx);
   }, [docId]);
 
-  const { edits, loading, loaded, addEdit } = useDocumentEdits(
+  const { edits, loading, loaded, addEdit, refresh: refreshEdits } = useDocumentEdits(
     docId,
     docCtx?.docKey ?? null,
     active,
   );
 
   // Derive initial content from edits (no effect, no race condition)
+  // Filter to content edits only — title edits don't carry body content
+  const contentEdits = useMemo(
+    () => edits.filter((e) => e.editType !== "title"),
+    [edits],
+  );
+
   const initialContent = useMemo(() => {
-    if (!loaded || edits.length === 0) return "";
-    return edits[edits.length - 1].content;
-  }, [edits, loaded]);
+    if (!loaded || contentEdits.length === 0) return "";
+    return contentEdits[contentEdits.length - 1].content;
+  }, [contentEdits, loaded]);
 
   const initialSheetData = useMemo(() => {
-    if (!loaded || edits.length === 0) return emptySpreadsheet();
+    if (!loaded || contentEdits.length === 0) return emptySpreadsheet();
     try {
-      return deserializeSpreadsheet(edits[edits.length - 1].content);
+      return deserializeSpreadsheet(contentEdits[contentEdits.length - 1].content);
     } catch {
       return emptySpreadsheet();
     }
-  }, [edits, loaded]);
+  }, [contentEdits, loaded]);
 
   // Resolved values: use user edits if user has touched the editor, otherwise derived from edits
   const content = userEdited ? userContent : initialContent;
@@ -219,6 +225,8 @@ export default function DocPage() {
                           `agentdocs:doc:${docId}`,
                           JSON.stringify({ ...docCtx, title: trimmed }),
                         );
+                        // Refresh edits so the title change appears in history
+                        await refreshEdits();
                         toast.success("Title updated");
                       } catch {
                         toast.error("Failed to rename");

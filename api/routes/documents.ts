@@ -111,6 +111,7 @@ documentsRouter.put("/by-slug/:slug", async (c) => {
       sequenceNumber: seq,
       algorithm,
       authorIdentityId: identityId,
+      editType: "content",
     });
 
     fireWebhooks("document", docId, "document.edited", identityId);
@@ -149,7 +150,7 @@ documentsRouter.post("/by-slug/:slug/edits", async (c) => {
     return c.json({ error: "Document not found" }, 404);
   }
 
-  const { encryptedContent, encryptedContentIv, signature, sequenceNumber, algorithm } =
+  const { encryptedContent, encryptedContentIv, signature, sequenceNumber, algorithm, editType } =
     parsed.data;
 
   const edit = await addEdit({
@@ -160,6 +161,7 @@ documentsRouter.post("/by-slug/:slug/edits", async (c) => {
     sequenceNumber,
     algorithm,
     authorIdentityId: identityId,
+    editType,
   });
 
   fireWebhooks("document", doc.id as string, "document.edited", identityId);
@@ -212,7 +214,7 @@ documentsRouter.post("/:id/edits", async (c) => {
     return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  const { encryptedContent, encryptedContentIv, signature, sequenceNumber, algorithm } =
+  const { encryptedContent, encryptedContentIv, signature, sequenceNumber, algorithm, editType } =
     parsed.data;
 
   const edit = await addEdit({
@@ -223,6 +225,7 @@ documentsRouter.post("/:id/edits", async (c) => {
     sequenceNumber,
     algorithm,
     authorIdentityId: identityId,
+    editType,
   });
 
   fireWebhooks("document", documentId, "document.edited", identityId);
@@ -250,12 +253,27 @@ documentsRouter.patch("/:id", async (c) => {
 
   const { encryptedTitle, encryptedTitleIv, algorithm } = parsed.data;
 
-  // TODO: could verify access grant here, but updateDocumentContent is idempotent
+  // Update the document title
   await updateDocumentContent({
     documentId,
     encryptedTitle,
     encryptedTitleIv,
     algorithm,
+  });
+
+  // Also record the rename as an edit so it appears in history
+  const existingEdits = await getDocumentEdits(documentId);
+  const nextSeq = existingEdits.length;
+
+  await addEdit({
+    documentId,
+    encryptedContent: encryptedTitle,
+    encryptedContentIv: encryptedTitleIv,
+    signature: "", // Title edits don't require a signature
+    sequenceNumber: nextSeq,
+    algorithm,
+    authorIdentityId: identityId,
+    editType: "title",
   });
 
   fireWebhooks("document", documentId, "document.edited", identityId);

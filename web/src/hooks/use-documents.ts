@@ -50,6 +50,7 @@ export interface DocumentEdit {
   sequenceNumber: number;
   createdAt: number;
   authorId: string;
+  editType: "content" | "title";
 }
 
 interface RawEdit {
@@ -59,6 +60,7 @@ interface RawEdit {
   algorithm: string;
   signature: string;
   sequenceNumber: number;
+  editType?: "content" | "title";
   createdAt: number;
   author: Array<{ id: string }>;
 }
@@ -246,6 +248,7 @@ export function useDocumentEdits(
             sequenceNumber: edit.sequenceNumber,
             createdAt: edit.createdAt,
             authorId: edit.author?.[0]?.id || "unknown",
+            editType: edit.editType || "content",
           });
         } catch {
           continue;
@@ -296,6 +299,7 @@ export function useDocumentEdits(
           signature,
           sequenceNumber: nextSeq,
           algorithm: encrypted.algorithm,
+          editType: "content",
         },
       });
 

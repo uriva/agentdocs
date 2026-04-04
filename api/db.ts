@@ -219,6 +219,7 @@ export async function addEdit(params: {
   sequenceNumber: number;
   algorithm: string;
   authorIdentityId: string;
+  editType?: "content" | "title";
 }): Promise<{ id: string }> {
   const editId = crypto.randomUUID();
 
@@ -229,6 +230,7 @@ export async function addEdit(params: {
       signature: params.signature,
       sequenceNumber: params.sequenceNumber,
       algorithm: params.algorithm,
+      editType: params.editType || "content",
       createdAt: Date.now(),
     }],
     ["link", "edits", editId, { document: params.documentId }],

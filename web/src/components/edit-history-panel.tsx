@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronDown, ChevronRight, User, Clock } from "lucide-react";
+import { X, ChevronDown, ChevronRight, User, Clock, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DocumentEdit } from "@/hooks/use-documents";
 
@@ -118,6 +118,7 @@ export function EditHistoryPanel({
           const prevEdit = editIndex > 0 ? edits[editIndex - 1] : null;
           const isExpanded = expandedEdit === edit.id;
           const isFirst = editIndex === 0;
+          const isTitleEdit = edit.editType === "title";
 
           return (
             <div key={edit.id} className="border-b border-border/50">
@@ -145,6 +146,12 @@ export function EditHistoryPanel({
                         initial
                       </span>
                     )}
+                    {isTitleEdit && (
+                      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 bg-muted/50 px-1 rounded flex items-center gap-0.5">
+                        <Type className="h-2 w-2" />
+                        renamed
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/50">
                     <span className="flex items-center gap-0.5">
@@ -158,8 +165,12 @@ export function EditHistoryPanel({
                   </div>
                   {!isSpreadsheet && !isExpanded && (
                     <p className="text-[10px] text-muted-foreground/40 truncate leading-tight">
-                      {edit.content.slice(0, 80)}
-                      {edit.content.length > 80 ? "..." : ""}
+                      {isTitleEdit ? `Title: ${edit.content}` : (
+                        <>
+                          {edit.content.slice(0, 80)}
+                          {edit.content.length > 80 ? "..." : ""}
+                        </>
+                      )}
                     </p>
                   )}
                 </div>
@@ -168,7 +179,13 @@ export function EditHistoryPanel({
               {/* Expanded diff view */}
               {isExpanded && (
                 <div className="px-4 pb-3">
-                  {isSpreadsheet ? (
+                  {isTitleEdit ? (
+                    /* Title edit: show the new title */
+                    <div className="rounded border bg-muted/10 p-2">
+                      <div className="text-[10px] font-mono text-muted-foreground/50 mb-1">New title:</div>
+                      <div className="text-xs font-medium text-foreground/80">{edit.content}</div>
+                    </div>
+                  ) : isSpreadsheet ? (
                     <div className="text-[10px] font-mono text-muted-foreground/50 italic">
                       Spreadsheet diff not supported
                     </div>

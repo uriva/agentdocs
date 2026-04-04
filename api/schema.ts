@@ -116,6 +116,7 @@ export const ListEditsResponse = z.object({
     signature,
     sequenceNumber: z.number(),
     algorithm,
+    editType: z.enum(["content", "title"]).default("content").describe("Type of edit: 'content' for body changes, 'title' for renames"),
     authorIdentityId: z.string(),
     createdAt: z.string().optional(),
   })).describe("Ordered list of document edits"),
@@ -127,6 +128,7 @@ export const CreateEditRequest = z.object({
   signature: signature.describe("Author's Ed25519 signature over the plaintext content"),
   sequenceNumber: z.number().int().min(0).describe("Monotonically increasing edit sequence number"),
   algorithm,
+  editType: z.enum(["content", "title"]).default("content").describe("Type of edit: 'content' for body changes, 'title' for renames"),
 }).describe("Add a new edit to a document");
 
 export const CreateEditResponse = z.object({
