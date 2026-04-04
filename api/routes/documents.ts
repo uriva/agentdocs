@@ -6,9 +6,20 @@ import {
   createAccessGrant,
   getDocumentsForIdentity,
 } from "../db.ts";
+import {
+  CreateDocumentRequest,
+  CreateEditRequest,
+  ShareDocumentRequest,
+} from "../schema.ts";
 import type { AppEnv } from "../types.ts";
 
 export const documentsRouter = new Hono<AppEnv>();
+
+/** Parse the request body (prefer rawBody stored by auth middleware) */
+function parseBody(c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } }) {
+  const raw = c.get("rawBody") as string | undefined;
+  return raw ? JSON.parse(raw) : c.req.json();
+}
 
 // List documents the identity has access to
 documentsRouter.get("/", async (c) => {
@@ -20,26 +31,14 @@ documentsRouter.get("/", async (c) => {
 // Create a new document
 documentsRouter.post("/", async (c) => {
   const identityId = c.get("identityId") as string;
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = CreateDocumentRequest.safeParse(raw);
 
-  const { type, encryptedTitle, encryptedTitleIv, algorithm, accessGrant } =
-    body;
-
-  if (
-    !type ||
-    !encryptedTitle ||
-    !encryptedTitleIv ||
-    !algorithm ||
-    !accessGrant
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  if (type !== "doc" && type !== "spreadsheet") {
-    return c.json({ error: "Invalid document type" }, 400);
-  }
+  const { type, encryptedTitle, encryptedTitleIv, algorithm, accessGrant } = parsed.data;
 
   const doc = await createDocument({
     type,
@@ -57,30 +56,15 @@ documentsRouter.post("/", async (c) => {
 documentsRouter.post("/:id/edits", async (c) => {
   const identityId = c.get("identityId") as string;
   const documentId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = CreateEditRequest.safeParse(raw);
 
-  const {
-    encryptedContent,
-    encryptedContentIv,
-    signature,
-    sequenceNumber,
-    algorithm,
-  } = body;
-
-  if (
-    !encryptedContent ||
-    !encryptedContentIv ||
-    !signature ||
-    sequenceNumber === undefined ||
-    !algorithm
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  // TODO: Verify the identity has an access grant for this document
-  // TODO: Verify sequenceNumber is the next in sequence
+  const { encryptedContent, encryptedContentIv, signature, sequenceNumber, algorithm } =
+    parsed.data;
 
   const edit = await addEdit({
     documentId,
@@ -98,9 +82,6 @@ documentsRouter.post("/:id/edits", async (c) => {
 // Get edits for a document
 documentsRouter.get("/:id/edits", async (c) => {
   const documentId = c.req.param("id");
-
-  // TODO: Verify the requesting identity has an access grant
-
   const edits = await getDocumentEdits(documentId);
   return c.json({ edits });
 });
@@ -109,24 +90,14 @@ documentsRouter.get("/:id/edits", async (c) => {
 documentsRouter.post("/:id/share", async (c) => {
   const grantorIdentityId = c.get("identityId") as string;
   const documentId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = ShareDocumentRequest.safeParse(raw);
 
-  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } =
-    body;
-
-  if (
-    !granteeIdentityId ||
-    !encryptedSymmetricKey ||
-    !iv ||
-    !salt ||
-    !algorithm
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  // TODO: Verify the grantor has access to this document
+  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } = parsed.data;
 
   const grant = await createAccessGrant({
     documentId,

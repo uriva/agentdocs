@@ -9,9 +9,23 @@ import {
   createTicketAccessGrant,
   assignTicket,
 } from "../db.ts";
+import {
+  CreateTicketRequest,
+  UpdateTicketMetadataRequest,
+  UpdateTicketContentRequest,
+  CreateCommentRequest,
+  ShareTicketRequest,
+  AssignTicketRequest,
+} from "../schema.ts";
 import type { AppEnv } from "../types.ts";
 
 export const ticketsRouter = new Hono<AppEnv>();
+
+/** Parse the request body (prefer rawBody stored by auth middleware) */
+function parseBody(c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } }) {
+  const raw = c.get("rawBody") as string | undefined;
+  return raw ? JSON.parse(raw) : c.req.json();
+}
 
 // List tickets the identity has access to
 ticketsRouter.get("/", async (c) => {
@@ -23,49 +37,26 @@ ticketsRouter.get("/", async (c) => {
 // Create a new ticket
 ticketsRouter.post("/", async (c) => {
   const identityId = c.get("identityId") as string;
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = CreateTicketRequest.safeParse(raw);
+
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+  }
 
   const {
-    encryptedTitle,
-    encryptedTitleIv,
-    encryptedBody,
-    encryptedBodyIv,
-    status,
-    priority,
-    algorithm,
-    accessGrant,
-  } = body;
-
-  if (
-    !encryptedTitle ||
-    !encryptedTitleIv ||
-    !encryptedBody ||
-    !encryptedBodyIv ||
-    !algorithm ||
-    !accessGrant
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
-  }
-
-  const validStatuses = ["open", "in_progress", "closed"];
-  const validPriorities = ["low", "medium", "high", "urgent"];
-
-  if (status && !validStatuses.includes(status)) {
-    return c.json({ error: "Invalid status" }, 400);
-  }
-  if (priority && !validPriorities.includes(priority)) {
-    return c.json({ error: "Invalid priority" }, 400);
-  }
+    encryptedTitle, encryptedTitleIv,
+    encryptedBody, encryptedBodyIv,
+    status, priority, algorithm, accessGrant,
+  } = parsed.data;
 
   const ticket = await createTicket({
     encryptedTitle,
     encryptedTitleIv,
     encryptedBody,
     encryptedBodyIv,
-    status: status || "open",
-    priority: priority || "medium",
+    status,
+    priority,
     algorithm,
     creatorIdentityId: identityId,
     accessGrant,
@@ -74,29 +65,17 @@ ticketsRouter.post("/", async (c) => {
   return c.json({ ticket }, 201);
 });
 
-// Update ticket metadata (status, priority) — plaintext, no re-encryption needed
+// Update ticket metadata (status, priority)
 ticketsRouter.patch("/:id", async (c) => {
   const ticketId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = UpdateTicketMetadataRequest.safeParse(raw);
 
-  const { status, priority } = body;
-
-  const validStatuses = ["open", "in_progress", "closed"];
-  const validPriorities = ["low", "medium", "high", "urgent"];
-
-  if (status && !validStatuses.includes(status)) {
-    return c.json({ error: "Invalid status" }, 400);
-  }
-  if (priority && !validPriorities.includes(priority)) {
-    return c.json({ error: "Invalid priority" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
-  if (!status && !priority) {
-    return c.json({ error: "Nothing to update" }, 400);
-  }
-
+  const { status, priority } = parsed.data;
   await updateTicketMetadata({ ticketId, status, priority });
   return c.json({ ok: true });
 });
@@ -104,27 +83,15 @@ ticketsRouter.patch("/:id", async (c) => {
 // Update ticket encrypted content (title + body)
 ticketsRouter.put("/:id", async (c) => {
   const ticketId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = UpdateTicketContentRequest.safeParse(raw);
 
-  const {
-    encryptedTitle,
-    encryptedTitleIv,
-    encryptedBody,
-    encryptedBodyIv,
-    algorithm,
-  } = body;
-
-  if (
-    !encryptedTitle ||
-    !encryptedTitleIv ||
-    !encryptedBody ||
-    !encryptedBodyIv ||
-    !algorithm
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
+
+  const { encryptedTitle, encryptedTitleIv, encryptedBody, encryptedBodyIv, algorithm } =
+    parsed.data;
 
   await updateTicketEncryptedContent({
     ticketId,
@@ -142,15 +109,14 @@ ticketsRouter.put("/:id", async (c) => {
 ticketsRouter.post("/:id/comments", async (c) => {
   const identityId = c.get("identityId") as string;
   const ticketId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = CreateCommentRequest.safeParse(raw);
 
-  const { encryptedContent, encryptedContentIv, signature, algorithm } = body;
-
-  if (!encryptedContent || !encryptedContentIv || !signature || !algorithm) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
+
+  const { encryptedContent, encryptedContentIv, signature, algorithm } = parsed.data;
 
   const comment = await addTicketComment({
     ticketId,
@@ -171,26 +137,18 @@ ticketsRouter.get("/:id/comments", async (c) => {
   return c.json({ comments });
 });
 
-// Share a ticket (create access grant for another identity)
+// Share a ticket
 ticketsRouter.post("/:id/share", async (c) => {
   const grantorIdentityId = c.get("identityId") as string;
   const ticketId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = ShareTicketRequest.safeParse(raw);
 
-  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } =
-    body;
-
-  if (
-    !granteeIdentityId ||
-    !encryptedSymmetricKey ||
-    !iv ||
-    !salt ||
-    !algorithm
-  ) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
+
+  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } = parsed.data;
 
   const grant = await createTicketAccessGrant({
     ticketId,
@@ -208,15 +166,14 @@ ticketsRouter.post("/:id/share", async (c) => {
 // Assign a ticket to an identity
 ticketsRouter.patch("/:id/assign", async (c) => {
   const ticketId = c.req.param("id");
-  const body = c.get("rawBody")
-    ? JSON.parse(c.get("rawBody") as string)
-    : await c.req.json();
+  const raw = await parseBody(c);
+  const parsed = AssignTicketRequest.safeParse(raw);
 
-  const { assigneeIdentityId } = body;
-  if (!assigneeIdentityId) {
-    return c.json({ error: "Missing assigneeIdentityId" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
+  const { assigneeIdentityId } = parsed.data;
   await assignTicket({ ticketId, assigneeIdentityId });
   return c.json({ ok: true });
 });

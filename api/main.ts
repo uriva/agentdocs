@@ -5,6 +5,7 @@ import { getIdentityPublicKeys } from "./db.ts";
 import { documentsRouter } from "./routes/documents.ts";
 import { identitiesRouter } from "./routes/identities.ts";
 import { ticketsRouter } from "./routes/tickets.ts";
+import { RegisterIdentityRequest } from "./schema.ts";
 import type { AppEnv } from "./types.ts";
 
 const app = new Hono<AppEnv>();
@@ -28,6 +29,20 @@ app.use("/*", cors({
 
 // Health check
 app.get("/health", (c) => c.json({ ok: true }));
+
+// ─── Documentation Routes (public, no auth) ─────────────────────────────────
+
+app.get("/llms.txt", async (c) => {
+  const { generateLlmsTxt } = await import("./generate-docs.ts");
+  c.header("Content-Type", "text/plain; charset=utf-8");
+  return c.text(generateLlmsTxt());
+});
+
+app.get("/docs", async (c) => {
+  const { generateDocsHtml } = await import("./generate-docs.ts");
+  c.header("Content-Type", "text/html; charset=utf-8");
+  return c.html(generateDocsHtml());
+});
 
 // ─── Auth Middleware ──────────────────────────────────────────────────────────
 // Signature-based auth: every request must include:
@@ -94,20 +109,20 @@ app.route("/api/tickets", ticketsRouter);
 
 app.post("/register-identity", async (c) => {
   const body = await c.req.json();
-  const { signingPublicKey, encryptionPublicKey, name, algorithmSuite, userId } = body;
+  const parsed = RegisterIdentityRequest.safeParse(body);
 
-  if (!signingPublicKey || !encryptionPublicKey || !algorithmSuite || !userId) {
-    return c.json({ error: "Missing required fields" }, 400);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
   }
 
   try {
     const { createIdentity } = await import("./db.ts");
     const identity = await createIdentity({
-      signingPublicKey,
-      encryptionPublicKey,
-      name: name || "Unnamed Identity",
-      algorithmSuite,
-      userId,
+      signingPublicKey: parsed.data.signingPublicKey,
+      encryptionPublicKey: parsed.data.encryptionPublicKey,
+      name: parsed.data.name || "Unnamed Identity",
+      algorithmSuite: parsed.data.algorithmSuite,
+      userId: parsed.data.userId,
     });
 
     return c.json({ identity });
