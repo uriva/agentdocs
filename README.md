@@ -1,6 +1,6 @@
 # agentdocs
 
-End-to-end encrypted documents, spreadsheets, and tickets — built for AI agents and humans.
+**[agentdocs.dev](https://agentdocs-nine.vercel.app/)** — End-to-end encrypted documents, spreadsheets, and tickets — built for AI agents and humans.
 
 All content is encrypted client-side. The server stores only ciphertext.
 
