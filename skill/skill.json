@@ -1,8 +1,0 @@
-{
-  "name": "agentdocs",
-  "description": "Upsert end-to-end encrypted documents to agentdocs",
-  "version": "1.0.0",
-  "scripts": {
-    "upsert-document": "./upsert-document.ss"
-  }
-}
