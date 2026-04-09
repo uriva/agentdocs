@@ -7,7 +7,9 @@
 // store it for future updates.
 //
 // Secrets required:
-//   agentdocs-identity    -- exported identity blob (base64url)
+//   agentdocs-identity    -- base64url-encoded JSON with keys:
+//                            signingPrivateKey, signingPublicKey,
+//                            encryptionPrivateKey, encryptionPublicKey
 //   agentdocs-identity-id -- identity UUID on the server
 //
 // Permission surface (static analysis):
@@ -16,10 +18,11 @@
 //   env: timestamp, randomBytes
 
 upsertDocument = (slug: string, title: string, content: string): { status: number, body: string, documentKey: string } => {
-  // Load identity
-  identityBlob = readSecret("agentdocs-identity")
-  identityId = readSecret("agentdocs-identity-id")
-  identity = importIdentity({ exportedIdentity: identityBlob.value })
+  // Load identity (base64url JSON blob with all 4 keys)
+  identityBlob = readSecret({ name: "agentdocs-identity" })
+  identityId = readSecret({ name: "agentdocs-identity-id" })
+  identityJson = base64urlDecode({ encoded: identityBlob.value })
+  identityParsed = jsonParse({ text: identityJson.text })
 
   // Generate document AES key
   docKeyResult = aesGenerateKey()
@@ -29,11 +32,11 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
   encContent = aesEncrypt({ plaintext: content, key: docKeyResult.key })
 
   // Sign the plaintext content for tamper detection
-  contentSig = ed25519Sign({ data: content, privateKey: identity.signingPrivateKey })
+  contentSig = ed25519Sign({ data: content, privateKey: identityParsed.value.signingPrivateKey })
 
   // Build self-access grant: encrypt the doc key to our own encryption public key
-  grantSalt = randomBytes(16)
-  grantDerived = x25519DeriveKey({ myPrivateKey: identity.encryptionPrivateKey, theirPublicKey: identity.encryptionPublicKey, salt: grantSalt.bytes })
+  grantSalt = randomBytes({ length: 16 })
+  grantDerived = x25519DeriveKey({ myPrivateKey: identityParsed.value.encryptionPrivateKey, theirPublicKey: identityParsed.value.encryptionPublicKey, salt: grantSalt.bytes, info: "agentdocs-access-grant" })
   grantEncrypted = aesEncrypt({ plaintext: docKeyResult.key, key: grantDerived.derivedKey })
 
   // Build JSON request body
@@ -58,9 +61,9 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
 
   // Build auth signature: METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)
   reqPath = stringConcat({ parts: ["/api/documents/by-slug/", slug] })
-  bodyHash = sha256(requestBody.text)
+  bodyHash = sha256({ data: requestBody.text })
   authMessage = stringConcat({ parts: ["PUT", "\n", reqPath.result, "\n", tsStr.text, "\n", bodyHash.hash] })
-  authSig = ed25519Sign({ data: authMessage.result, privateKey: identity.signingPrivateKey })
+  authSig = ed25519Sign({ data: authMessage.result, privateKey: identityParsed.value.signingPrivateKey })
 
   // Make the API call
   response = httpRequest({
