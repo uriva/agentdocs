@@ -104,6 +104,20 @@ export const ListDocumentsResponse = z.object({
   })).describe("Documents the identity has access to"),
 }).describe("List of accessible documents");
 
+export const GetDocumentResponse = z.object({
+  document: z.object({
+    id: z.string(),
+    type: z.enum(["doc", "spreadsheet"]),
+    encryptedTitle: encrypted,
+    encryptedTitleIv: iv,
+    algorithm,
+    createdAt: z.string().optional(),
+    accessGrants: z.array(z.unknown()).describe(
+      "Access grants the caller can use to derive the document key",
+    ),
+  }),
+}).describe("Single document with the caller's access grants");
+
 export const CreateDocumentRequest = z.object({
   type: z.enum(["doc", "spreadsheet"]).describe("Document type"),
   encryptedTitle: encrypted.describe("Encrypted document title"),
@@ -431,6 +445,18 @@ export const routes: RouteEntry[] = [
     auth: true,
     response: ListDocumentsResponse,
     successStatus: 200,
+  },
+  {
+    method: "GET",
+    path: "/api/documents/:id",
+    summary: "Get a document",
+    description:
+      "Returns a single document with the caller's access grants. 404 if the " +
+      "caller has no grant on this document.",
+    auth: true,
+    response: GetDocumentResponse,
+    successStatus: 200,
+    pathParams: [{ name: "id", description: "Document ID" }],
   },
   {
     method: "POST",

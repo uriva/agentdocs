@@ -1,115 +1,149 @@
 // create-document.ss
-// Creates an encrypted document via POST /api/documents.
+// Creates an encrypted document and appends its first edit.
 //
-// Reads the agent's identity from secrets, generates a fresh AES key,
-// encrypts the title and content, builds a self-access grant, signs the
-// request, and sends it. Returns the new document ID and AES key so the
-// caller can store both for future edits, shares, and links.
+// Reads the agent's identity from `agentdocs-identity` (base64url JSON
+// bundle exported from the agentdocs web UI), generates a fresh AES key,
+// encrypts title + content with it, wraps the key for the creator (self
+// access grant), signs and sends POST /api/documents, then signs and
+// sends the first edit to /api/documents/:id/edits.
+//
+// Returns { documentId, documentKey, status, body }. Persist documentId
+// and documentKey — documentKey is the only thing that can decrypt the
+// document later.
 //
 // Secrets required:
-//   agentdocs-identity    -- base64url-encoded JSON with keys:
-//                            signingPrivateKey, signingPublicKey,
-//                            encryptionPrivateKey, encryptionPublicKey
-//   agentdocs-identity-id -- identity UUID on the server
+//   agentdocs-identity -- base64url-encoded JSON exported from the web UI:
+//                         { id, name, signing: { privateKey },
+//                           encryption: { privateKey }, algorithm: {...} }
 //
 // Permission surface (static analysis):
-//   secrets read: agentdocs-identity, agentdocs-identity-id
+//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp, randomBytes
 
-createDocument = (title: string, content: string): { status: number, body: string, documentKey: string } => {
-  // Load identity (base64url JSON blob with all 4 keys)
-  identityBlob = readSecret({ name: "agentdocs-identity" })
-  identityId = readSecret({ name: "agentdocs-identity-id" })
-  identityJson = base64urlDecode({ encoded: identityBlob.value })
-  identityParsed = jsonParse({ text: identityJson.text })
+// Load + parse the identity bundle. The bundle only carries private keys;
+// public keys are derived here so downstream code has the full pair.
+loadIdentity = (): {
+  id: string,
+  signingPrivateKey: string,
+  signingPublicKey: string,
+  encryptionPrivateKey: string,
+  encryptionPublicKey: string
+} => {
+  blob = readSecret({ name: "agentdocs-identity" })
+  decoded = base64urlDecode(blob.value)
+  parsed = jsonParse(decoded.text)
+  bundle = parsed.value
+  signPub = ed25519PublicFromPrivate(bundle.signing.privateKey)
+  encPub = x25519PublicFromPrivate(bundle.encryption.privateKey)
+  return {
+    id: bundle.id,
+    signingPrivateKey: bundle.signing.privateKey,
+    signingPublicKey: signPub.publicKey,
+    encryptionPrivateKey: bundle.encryption.privateKey,
+    encryptionPublicKey: encPub.publicKey
+  }
+}
 
-  // Generate document AES key
-  docKeyResult = aesGenerateKey()
+// Build an access grant: encrypt docKey so the recipient (theirEncPub)
+// can later recover it with their own X25519 private key + our public key.
+buildGrant = (
+  docKey: string,
+  myEncPriv: string,
+  theirEncPub: string
+): { encryptedSymmetricKey: string, iv: string, salt: string, algorithm: string } => {
+  salt = randomBytes(16)
+  derived = x25519DeriveKey({
+    myPrivateKey: myEncPriv,
+    theirPublicKey: theirEncPub,
+    salt: salt.bytes,
+    info: "agentdocs-access-grant"
+  })
+  wrapped = aesEncrypt({ plaintext: docKey, key: derived.derivedKey })
+  return {
+    encryptedSymmetricKey: wrapped.ciphertext,
+    iv: wrapped.iv,
+    salt: salt.bytes,
+    algorithm: "AES-GCM-256"
+  }
+}
 
-  // Encrypt title and content
-  encTitle = aesEncrypt({ plaintext: title, key: docKeyResult.key })
-  encContent = aesEncrypt({ plaintext: content, key: docKeyResult.key })
+// Build the signed-request auth signature: Ed25519 over
+// `${method}\n${path}\n${timestamp}\n${sha256(body)}`.
+buildAuthSignature = (
+  method: string,
+  path: string,
+  timestampStr: string,
+  body: string,
+  signingPrivateKey: string
+): { signature: string } => {
+  h = sha256(body)
+  msg = stringConcat({ parts: [method, "\n", path, "\n", timestampStr, "\n", h.hash] })
+  return ed25519Sign({ data: msg.result, privateKey: signingPrivateKey })
+}
 
-  // Sign the plaintext content for tamper detection
-  contentSig = ed25519Sign({ data: content, privateKey: identityParsed.value.signingPrivateKey })
+// Signed POST to the agentdocs API. Returns the raw httpRequest response.
+signedPost = (
+  path: string,
+  body: string,
+  identityId: string,
+  signingPrivateKey: string
+): { status: number, body: string } => {
+  t = timestamp()
+  tsStr = jsonStringify(t.timestamp)
+  sig = buildAuthSignature("POST", path, tsStr.text, body, signingPrivateKey)
+  return httpRequest({
+    host: "agentdocs-api.uriva.deno.net",
+    method: "POST",
+    path: path,
+    headers: {
+      "content-type": "application/json",
+      "x-identity-id": identityId,
+      "x-timestamp": tsStr.text,
+      "x-signature": sig.signature
+    },
+    body: body
+  })
+}
 
-  // Build self-access grant: encrypt the doc key to our own encryption public key
-  grantSalt = randomBytes({ length: 16 })
-  grantDerived = x25519DeriveKey({ myPrivateKey: identityParsed.value.encryptionPrivateKey, theirPublicKey: identityParsed.value.encryptionPublicKey, salt: grantSalt.bytes, info: "agentdocs-access-grant" })
-  grantEncrypted = aesEncrypt({ plaintext: docKeyResult.key, key: grantDerived.derivedKey })
+createDocument = (
+  title: string,
+  content: string
+): { documentId: string, documentKey: string, status: number, body: string } => {
+  identity = loadIdentity()
+  docKey = aesGenerateKey()
+  encTitle = aesEncrypt({ plaintext: title, key: docKey.key })
+  grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
 
-  // Build JSON request body for POST /api/documents
-  requestBody = jsonStringify({ value: {
+  // POST /api/documents — creates the document with a self access grant.
+  createBody = jsonStringify({
     type: "doc",
     encryptedTitle: encTitle.ciphertext,
     encryptedTitleIv: encTitle.iv,
     algorithm: "AES-GCM-256",
-    accessGrant: {
-      encryptedSymmetricKey: grantEncrypted.ciphertext,
-      iv: grantEncrypted.iv,
-      salt: grantSalt.bytes,
-      algorithm: "AES-GCM-256"
-    }
-  } })
-
-  // Get timestamp for auth
-  t = timestamp()
-  tsStr = jsonStringify({ value: t.timestamp })
-
-  // Build auth signature: METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)
-  reqPath = "/api/documents"
-  bodyHash = sha256({ data: requestBody.text })
-  authMessage = stringConcat({ parts: ["POST", "\n", reqPath, "\n", tsStr.text, "\n", bodyHash.hash] })
-  authSig = ed25519Sign({ data: authMessage.result, privateKey: identityParsed.value.signingPrivateKey })
-
-  // Create the document
-  createResponse = httpRequest({
-    host: "agentdocs-api.uriva.deno.net",
-    method: "POST",
-    path: reqPath,
-    headers: {
-      "content-type": "application/json",
-      "x-identity-id": identityId.value,
-      "x-timestamp": tsStr.text,
-      "x-signature": authSig.signature
-    },
-    body: requestBody.text
+    accessGrant: grant
   })
+  createRes = signedPost("/api/documents", createBody.text, identity.id, identity.signingPrivateKey)
+  parsed = jsonParse(createRes.body)
+  docId = parsed.value.document.id
 
-  // Parse the response to get the new document ID, then append the first edit
-  parsedCreate = jsonParse({ text: createResponse.body })
-  docId = parsedCreate.value.document.id
-
-  // Build the initial-edit request body
-  editBody = jsonStringify({ value: {
+  // POST /api/documents/:id/edits — append the first edit with encrypted content.
+  encContent = aesEncrypt({ plaintext: content, key: docKey.key })
+  contentSig = ed25519Sign({ data: content, privateKey: identity.signingPrivateKey })
+  editBody = jsonStringify({
     encryptedContent: encContent.ciphertext,
     encryptedContentIv: encContent.iv,
     signature: contentSig.signature,
     sequenceNumber: 0,
     algorithm: "AES-GCM-256"
-  } })
-
-  // Sign the edit request
-  editPath = stringConcat({ parts: ["/api/documents/", docId, "/edits"] })
-  editTs = timestamp()
-  editTsStr = jsonStringify({ value: editTs.timestamp })
-  editBodyHash = sha256({ data: editBody.text })
-  editAuthMessage = stringConcat({ parts: ["POST", "\n", editPath.result, "\n", editTsStr.text, "\n", editBodyHash.hash] })
-  editAuthSig = ed25519Sign({ data: editAuthMessage.result, privateKey: identityParsed.value.signingPrivateKey })
-
-  editResponse = httpRequest({
-    host: "agentdocs-api.uriva.deno.net",
-    method: "POST",
-    path: editPath.result,
-    headers: {
-      "content-type": "application/json",
-      "x-identity-id": identityId.value,
-      "x-timestamp": editTsStr.text,
-      "x-signature": editAuthSig.signature
-    },
-    body: editBody.text
   })
+  editPath = stringConcat({ parts: ["/api/documents/", docId, "/edits"] })
+  editRes = signedPost(editPath.result, editBody.text, identity.id, identity.signingPrivateKey)
 
-  return { status: editResponse.status, body: editResponse.body, documentKey: docKeyResult.key, documentId: docId }
+  return {
+    documentId: docId,
+    documentKey: docKey.key,
+    status: editRes.status,
+    body: editRes.body
+  }
 }

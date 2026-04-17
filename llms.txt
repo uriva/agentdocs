@@ -60,6 +60,21 @@ Response (200, JSON):
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
     - createdAt (string): 
 
+### GET /api/documents/:id [auth required]
+Get a document
+Returns a single document with the caller's access grants. 404 if the caller has no grant on this document.
+Path params:
+  - id: Document ID
+Response (200, JSON):
+  - document (object): 
+    - id (string): 
+    - type (string): 
+    - encryptedTitle (string): Base64-encoded encrypted data
+    - encryptedTitleIv (string): Base64-encoded initialization vector
+    - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
+    - createdAt (string): 
+    - accessGrants (array): Access grants the caller can use to derive the document key
+
 ### POST /api/documents [auth required]
 Create a document
 Creates a new encrypted document (type: doc or spreadsheet). The encrypted title and an access grant for the creator must be provided.

@@ -4,6 +4,7 @@ import {
   createAccessGrant,
   createDocument,
   getDocumentEdits,
+  getDocumentForIdentity,
   getDocumentsForIdentity,
   updateDocumentTitle,
 } from "../db.ts";
@@ -33,6 +34,15 @@ documentsRouter.get("/", async (c) => {
   const identityId = c.get("identityId") as string;
   const documents = await getDocumentsForIdentity(identityId);
   return c.json({ documents });
+});
+
+// Get a single document (with the caller's access grant)
+documentsRouter.get("/:id", async (c) => {
+  const identityId = c.get("identityId") as string;
+  const documentId = c.req.param("id");
+  const document = await getDocumentForIdentity(documentId, identityId);
+  if (!document) return c.json({ error: "not found" }, 404);
+  return c.json({ document });
 });
 
 // Create a new document

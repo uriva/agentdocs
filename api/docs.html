@@ -249,6 +249,69 @@
 <td></td>
 </tr>
 </tbody></table>
+<h3><code>GET /api/documents/:id</code> 🔒</h3>
+<p>Returns a single document with the caller's access grants. 404 if the caller has no grant on this document.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>document</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.type</code></td>
+<td><code>doc</code> \</td>
+<td><code>spreadsheet</code></td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.encryptedTitle</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded encrypted data</td>
+</tr>
+<tr>
+<td><code>document.encryptedTitleIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded initialization vector</td>
+</tr>
+<tr>
+<td><code>document.algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>document.createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.accessGrants</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Access grants the caller can use to derive the document key</td>
+</tr>
+</tbody></table>
 <h3><code>POST /api/documents</code> 🔒</h3>
 <p>Creates a new encrypted document (type: doc or spreadsheet). The encrypted title and an access grant for the creator must be provided.</p>
 <p><strong>Request body:</strong></p>

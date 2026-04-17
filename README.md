@@ -135,6 +135,27 @@ Returns all documents the authenticated identity has access to via access grants
 | `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
 | `[].createdAt` | string | optional |  |
 
+### `GET /api/documents/:id` 🔒
+
+Returns a single document with the caller's access grants. 404 if the caller has no grant on this document.
+
+**Path parameters:**
+
+- `id` — Document ID
+
+**Response** (`200`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `document` | object | **required** |  |
+| `document.id` | string | **required** |  |
+| `document.type` | `doc` \| `spreadsheet` | **required** |  |
+| `document.encryptedTitle` | string | **required** | Base64-encoded encrypted data |
+| `document.encryptedTitleIv` | string | **required** | Base64-encoded initialization vector |
+| `document.algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `document.createdAt` | string | optional |  |
+| `document.accessGrants` | array | **required** | Access grants the caller can use to derive the document key |
+
 ### `POST /api/documents` 🔒
 
 Creates a new encrypted document (type: doc or spreadsheet). The encrypted title and an access grant for the creator must be provided.

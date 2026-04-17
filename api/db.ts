@@ -246,6 +246,48 @@ export async function createAccessGrant(params: {
   return { id: grantId };
 }
 
+/** Fetch one document with its access grants for a specific identity */
+export async function getDocumentForIdentity(
+  documentId: string,
+  identityId: string,
+): Promise<Record<string, unknown> | null> {
+  const result = await query({
+    accessGrants: {
+      $: {
+        where: {
+          "grantee.id": identityId,
+          "document.id": documentId,
+        },
+      },
+      document: {},
+      grantor: {},
+    },
+  });
+  const grants = (result.accessGrants as Array<{
+    id: string;
+    encryptedSymmetricKey: string;
+    iv: string;
+    salt: string;
+    algorithm: string;
+    document: Array<Record<string, unknown>>;
+    grantor: Array<Record<string, unknown>>;
+  }>) || [];
+  if (grants.length === 0) return null;
+  const doc = grants[0].document?.[0];
+  if (!doc || !doc.id) return null;
+  return {
+    ...doc,
+    accessGrants: grants.map((g) => ({
+      id: g.id,
+      encryptedSymmetricKey: g.encryptedSymmetricKey,
+      iv: g.iv,
+      salt: g.salt,
+      algorithm: g.algorithm,
+      grantor: g.grantor,
+    })),
+  };
+}
+
 export async function getDocumentsForIdentity(
   identityId: string,
 ): Promise<unknown[]> {
