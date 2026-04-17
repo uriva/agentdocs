@@ -1,909 +1,785 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>agentdocs API Documentation</title>
-    <style>
-      :root {
-        --bg: #0a0a0a;
-        --fg: #e5e5e5;
-        --muted: #888;
-        --border: #222;
-        --code-bg: #141414;
-        --accent: #fff;
-      }
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
-        background: var(--bg);
-        color: var(--fg);
-        line-height: 1.7;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 3rem 1.5rem;
-      }
-      h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: var(--accent);
-      }
-      h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin: 2.5rem 0 1rem;
-        color: var(--accent);
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 0.5rem;
-      }
-      h3 {
-        font-size: 1.1rem;
-        font-weight: 500;
-        margin: 2rem 0 0.5rem;
-      }
-      h3 code {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.95rem;
-        background: var(--code-bg);
-        padding: 0.2em 0.5em;
-        border-radius: 4px;
-      }
-      p {
-        margin: 0.5rem 0;
-      }
-      code {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.85em;
-        background: var(--code-bg);
-        padding: 0.15em 0.35em;
-        border-radius: 3px;
-      }
-      pre {
-        background: var(--code-bg);
-        padding: 1rem;
-        border-radius: 6px;
-        overflow-x: auto;
-        margin: 0.5rem 0;
-      }
-      pre code {
-        padding: 0;
-        background: none;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 0.5rem 0 1rem;
-        font-size: 0.9rem;
-      }
-      th, td {
-        text-align: left;
-        padding: 0.5rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-      }
-      th {
-        color: var(--muted);
-        font-weight: 500;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      ul, ol {
-        margin: 0.5rem 0 0.5rem 1.5rem;
-      }
-      li {
-        margin: 0.25rem 0;
-      }
-      a {
-        color: var(--accent);
-      }
-      .badge {
-        display: inline-block;
-        font-size: 0.7rem;
-        padding: 0.1em 0.4em;
-        border-radius: 3px;
-        background: #333;
-        color: #ccc;
-        margin-left: 0.5rem;
-        vertical-align: middle;
-      }
-    </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    >
-  </head>
-  <body>
-    <h1>agentdocs API</h1>
-    <p style="color: var(--muted); margin-bottom: 2rem">
-      End-to-end encrypted JSON documents for AI agents.
-    </p>
-    <h2>API Reference</h2>
-    <p>Base URL: <code>https://agentdocs-api.uriva.deno.net</code></p>
-    <h3>Authentication</h3>
-    <p>
-      All <code>/api/*</code> endpoints require signature-based authentication
-      via three headers:
-    </p>
-    <table>
-      <thead>
-        <tr>
-          <th>Header</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>X-Identity-Id</code></td>
-          <td>Your identity ID</td>
-        </tr>
-        <tr>
-          <td><code>X-Timestamp</code></td>
-          <td>Current Unix timestamp in milliseconds</td>
-        </tr>
-        <tr>
-          <td><code>X-Signature</code></td>
-          <td>Base64url-encoded Ed25519 signature</td>
-        </tr>
-      </tbody>
-    </table>
-    <p>
-      The signature covers: <code>METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)</code>
-    </p>
-    <h3>Public Endpoints</h3>
-    <h3><code>GET /health</code></h3>
-    <p>
-      Returns <code>{ ok: true }</code> if the API is running. No authentication
-      required.
-    </p>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>ok</code></td>
-          <td>true</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>POST /register-identity</code></h3>
-    <p>
-      Creates a new cryptographic identity linked to an InstantDB user account.
-      The caller provides their Ed25519 signing key and X25519 encryption key.
-      No signature auth is required (the user authenticates via InstantDB).
-    </p>
-    <p><strong>Request body:</strong></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>signingPublicKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded Ed25519 signing public key</td>
-        </tr>
-        <tr>
-          <td><code>encryptionPublicKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded X25519 encryption public key</td>
-        </tr>
-        <tr>
-          <td><code>name</code></td>
-          <td>string</td>
-          <td>optional</td>
-          <td>Human-readable display name</td>
-        </tr>
-        <tr>
-          <td><code>algorithmSuite</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Algorithm suite identifier (e.g. Ed25519-X25519-AES256GCM)</td>
-        </tr>
-        <tr>
-          <td><code>userId</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>InstantDB user ID that owns this identity</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>identity</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>identity.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Unique identity ID</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3>Identities</h3>
-    <h3><code>GET /api/identities/:id</code> 🔒</h3>
-    <p>
-      Retrieve an identity's public keys and display name. Used when sharing a
-      document with another user.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Identity ID</li>
-    </ul>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>identity</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>identity.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Identity ID</td>
-        </tr>
-        <tr>
-          <td><code>identity.signingPublicKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded Ed25519 signing public key</td>
-        </tr>
-        <tr>
-          <td><code>identity.encryptionPublicKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded X25519 encryption public key</td>
-        </tr>
-        <tr>
-          <td><code>identity.name</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Display name</td>
-        </tr>
-        <tr>
-          <td><code>identity.algorithmSuite</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Algorithm suite identifier</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3>Documents</h3>
-    <h3><code>GET /api/documents</code> 🔒</h3>
-    <p>
-      Returns all documents the authenticated identity has access to via access
-      grants.
-    </p>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>documents</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td>Documents the identity has access to</td>
-        </tr>
-        <tr>
-          <td><code>[].id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-        <tr>
-          <td><code>[].createdAt</code></td>
-          <td>string</td>
-          <td>optional</td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>GET /api/documents/:id</code> 🔒</h3>
-    <p>
-      Returns a single document with the caller's access grants. 404 if the
-      caller has no grant on this document.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Document ID</li>
-    </ul>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>document</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>document.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>document.algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-        <tr>
-          <td><code>document.createdAt</code></td>
-          <td>string</td>
-          <td>optional</td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>document.accessGrants</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td>Access grants the caller can use to derive the document key</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>POST /api/documents</code> 🔒</h3>
-    <p>
-      Creates a new encrypted document with an access grant for the creator.
-    </p>
-    <p><strong>Request body:</strong></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-        <tr>
-          <td><code>accessGrant</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td>Access grant for the creator</td>
-        </tr>
-        <tr>
-          <td><code>accessGrant.encryptedSymmetricKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Document symmetric key, encrypted for the grantee</td>
-        </tr>
-        <tr>
-          <td><code>accessGrant.iv</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>IV used when encrypting the symmetric key</td>
-        </tr>
-        <tr>
-          <td><code>accessGrant.salt</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Salt used in key derivation</td>
-        </tr>
-        <tr>
-          <td><code>accessGrant.algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><strong>Response</strong> (<code>201</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>document</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>document.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Newly created document ID</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>GET /api/documents/:id/edits</code> 🔒</h3>
-    <p>
-      Returns the full edit history for a document, ordered by sequence number.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Document ID</li>
-    </ul>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>edits</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td>Ordered list of document edits</td>
-        </tr>
-        <tr>
-          <td><code>[].id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].encryptedContent</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded encrypted data</td>
-        </tr>
-        <tr>
-          <td><code>[].encryptedContentIv</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded initialization vector</td>
-        </tr>
-        <tr>
-          <td><code>[].signature</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Base64-encoded Ed25519 signature</td>
-        </tr>
-        <tr>
-          <td><code>[].sequenceNumber</code></td>
-          <td>number</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-        <tr>
-          <td><code>[].authorIdentityId</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].createdAt</code></td>
-          <td>string</td>
-          <td>optional</td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>POST /api/documents/:id/edits</code> 🔒</h3>
-    <p>
-      Appends a new edit (encrypted content snapshot) to a document's history.
-      Each edit includes an Ed25519 signature over the plaintext for tamper
-      detection.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Document ID</li>
-    </ul>
-    <p><strong>Request body:</strong></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>encryptedContent</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encrypted edit content (full document snapshot or delta)</td>
-        </tr>
-        <tr>
-          <td><code>encryptedContentIv</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>IV for the encrypted content</td>
-        </tr>
-        <tr>
-          <td><code>signature</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Author's Ed25519 signature over the plaintext content</td>
-        </tr>
-        <tr>
-          <td><code>sequenceNumber</code></td>
-          <td>number</td>
-          <td><strong>required</strong></td>
-          <td>Monotonically increasing edit sequence number</td>
-        </tr>
-        <tr>
-          <td><code>algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><strong>Response</strong> (<code>201</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>edit</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>edit.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Newly created edit ID</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>POST /api/documents/:id/share</code> 🔒</h3>
-    <p>
-      Grants another identity access to this document by providing them with the
-      document's symmetric key encrypted to their public key.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Document ID</li>
-    </ul>
-    <p><strong>Request body:</strong></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>granteeIdentityId</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Identity ID of the recipient</td>
-        </tr>
-        <tr>
-          <td><code>encryptedSymmetricKey</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Document symmetric key, encrypted for the grantee</td>
-        </tr>
-        <tr>
-          <td><code>iv</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>IV used when encrypting the symmetric key</td>
-        </tr>
-        <tr>
-          <td><code>salt</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Salt used in key derivation</td>
-        </tr>
-        <tr>
-          <td><code>algorithm</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><strong>Response</strong> (<code>201</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>accessGrant</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>accessGrant.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Access grant ID</td>
-        </tr>
-      </tbody>
-    </table>
-    <h3>Webhooks</h3>
-    <p>
-      Subscribe to real-time events on documents. Webhook payloads are signed
-      with HMAC-SHA256 — verify using the <code>X-Webhook-Signature</code>
-      header.
-    </p>
-    <h3><code>GET /api/webhooks</code> 🔒</h3>
-    <p>
-      Returns all webhook subscriptions owned by the authenticated identity.
-    </p>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>webhooks</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td>Webhook subscriptions for the authenticated identity</td>
-        </tr>
-        <tr>
-          <td><code>[].id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].url</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].resourceType</code></td>
-          <td><code>document</code></td>
-          <td><strong>required</strong></td>
-          <td>Resource type</td>
-        </tr>
-        <tr>
-          <td><code>[].resourceId</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].events</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>[].active</code></td>
-          <td>boolean</td>
-          <td><strong>required</strong></td>
-          <td>
-            Whether the webhook is active (disabled after repeated failures)
-          </td>
-        </tr>
-        <tr>
-          <td><code>[].createdAt</code></td>
-          <td>string</td>
-          <td>optional</td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>POST /api/webhooks</code> 🔒</h3>
-    <p>
-      Subscribe to real-time events for a specific document. When a matching
-      event occurs, agentdocs sends an HMAC-signed POST to your URL with event
-      metadata (never encrypted content). The HMAC-SHA256 signing secret is
-      returned only once on creation — store it securely. Verify payloads by
-      comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).
-    </p>
-    <p><strong>Request body:</strong></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>url</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>HTTPS URL to receive webhook POST requests</td>
-        </tr>
-        <tr>
-          <td><code>resourceType</code></td>
-          <td><code>document</code></td>
-          <td><strong>required</strong></td>
-          <td>Resource type</td>
-        </tr>
-        <tr>
-          <td><code>resourceId</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>ID of the document to watch</td>
-        </tr>
-        <tr>
-          <td><code>events</code></td>
-          <td>array</td>
-          <td><strong>required</strong></td>
-          <td>Event types to subscribe to</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><strong>Response</strong> (<code>201</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>webhook</code></td>
-          <td>object</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td><code>webhook.id</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>Webhook subscription ID</td>
-        </tr>
-        <tr>
-          <td><code>webhook.secret</code></td>
-          <td>string</td>
-          <td><strong>required</strong></td>
-          <td>
-            HMAC-SHA256 signing secret. Store this securely — it is only
-            returned once. Verify incoming payloads by computing
-            HMAC-SHA256(secret, raw_body) and comparing to the
-            X-Webhook-Signature header.
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <h3><code>DELETE /api/webhooks/:id</code> 🔒</h3>
-    <p>
-      Permanently removes a webhook subscription. Deliveries in flight may still
-      complete.
-    </p>
-    <p><strong>Path parameters:</strong></p>
-    <ul>
-      <li><code>id</code> — Webhook subscription ID</li>
-    </ul>
-    <p><strong>Response</strong> (<code>200</code>):</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Type</th>
-          <th>Required</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>ok</code></td>
-          <td>true</td>
-          <td><strong>required</strong></td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-    <footer
-      style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem"
-    >
-      Generated from <code>schema.ts</code> &mdash; <a
-        href="https://github.com/uriva/agentdocs"
-      >GitHub</a>
-    </footer>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agentdocs API Documentation</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --fg: #e5e5e5;
+      --muted: #888;
+      --border: #222;
+      --code-bg: #141414;
+      --accent: #fff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--accent); }
+    h2 { font-size: 1.5rem; font-weight: 600; margin: 2.5rem 0 1rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 500; margin: 2rem 0 0.5rem; }
+    h3 code { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; background: var(--code-bg); padding: 0.2em 0.5em; border-radius: 4px; }
+    p { margin: 0.5rem 0; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; background: var(--code-bg); padding: 0.15em 0.35em; border-radius: 3px; }
+    pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 0.5rem 0; }
+    pre code { padding: 0; background: none; }
+    table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+    li { margin: 0.25rem 0; }
+    a { color: var(--accent); }
+    .badge { display: inline-block; font-size: 0.7rem; padding: 0.1em 0.4em; border-radius: 3px; background: #333; color: #ccc; margin-left: 0.5rem; vertical-align: middle; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>agentdocs API</h1>
+  <p style="color: var(--muted); margin-bottom: 2rem;">End-to-end encrypted JSON documents for AI agents.</p>
+  <h2>API Reference</h2>
+<p>Base URL: <code>https://agentdocs-api.uriva.deno.net</code></p>
+<h3>Authentication</h3>
+<p>All <code>/api/*</code> endpoints require signature-based authentication via three headers:</p>
+<table><thead><tr>
+<th>Header</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>X-Identity-Id</code></td>
+<td>Your identity ID</td>
+</tr>
+<tr>
+<td><code>X-Timestamp</code></td>
+<td>Current Unix timestamp in milliseconds</td>
+</tr>
+<tr>
+<td><code>X-Signature</code></td>
+<td>Base64url-encoded Ed25519 signature</td>
+</tr>
+</tbody></table>
+<p>The signature covers: <code>METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)</code></p>
+<h3>Public Endpoints</h3>
+<h3><code>GET /health</code></h3>
+<p>Returns <code>{ ok: true }</code> if the API is running. No authentication required.</p>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>ok</code></td>
+<td>true</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+</tbody></table>
+<h3><code>POST /register-identity</code></h3>
+<p>Creates a new cryptographic identity linked to an InstantDB user account. The caller provides their Ed25519 signing key and X25519 encryption key. No signature auth is required (the user authenticates via InstantDB).</p>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>signingPublicKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded Ed25519 signing public key</td>
+</tr>
+<tr>
+<td><code>encryptionPublicKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded X25519 encryption public key</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>optional</td>
+<td>Human-readable display name</td>
+</tr>
+<tr>
+<td><code>algorithmSuite</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Algorithm suite identifier (e.g. Ed25519-X25519-AES256GCM)</td>
+</tr>
+<tr>
+<td><code>userId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>InstantDB user ID that owns this identity</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>identity</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>identity.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Unique identity ID</td>
+</tr>
+</tbody></table>
+<h3>Identities</h3>
+<h3><code>GET /api/identities/:id</code> 🔒</h3>
+<p>Retrieve an identity's public keys and display name. Used when sharing a document with another user.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Identity ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>identity</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>identity.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Identity ID</td>
+</tr>
+<tr>
+<td><code>identity.signingPublicKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded Ed25519 signing public key</td>
+</tr>
+<tr>
+<td><code>identity.encryptionPublicKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded X25519 encryption public key</td>
+</tr>
+<tr>
+<td><code>identity.name</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Display name</td>
+</tr>
+<tr>
+<td><code>identity.algorithmSuite</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Algorithm suite identifier</td>
+</tr>
+</tbody></table>
+<h3>Documents</h3>
+<h3><code>GET /api/documents</code> 🔒</h3>
+<p>Returns all documents the authenticated identity has access to via access grants.</p>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>documents</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Documents the identity has access to</td>
+</tr>
+<tr>
+<td><code>[].id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>[].encryptedSnapshot</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded encrypted data</td>
+</tr>
+<tr>
+<td><code>[].encryptedSnapshotIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded initialization vector</td>
+</tr>
+<tr>
+<td><code>[].snapshotHash</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>SHA-256 hash of latest plaintext snapshot</td>
+</tr>
+<tr>
+<td><code>[].snapshotSequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td>Sequence number of latest encrypted snapshot</td>
+</tr>
+<tr>
+<td><code>[].createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3><code>GET /api/documents/:id</code> 🔒</h3>
+<p>Returns a single document with the caller's access grants. 404 if the caller has no grant on this document.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>document</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>document.encryptedSnapshot</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded encrypted data</td>
+</tr>
+<tr>
+<td><code>document.encryptedSnapshotIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded initialization vector</td>
+</tr>
+<tr>
+<td><code>document.snapshotHash</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>SHA-256 hash of latest plaintext snapshot</td>
+</tr>
+<tr>
+<td><code>document.snapshotSequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td>Sequence number of latest encrypted snapshot</td>
+</tr>
+<tr>
+<td><code>document.createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.accessGrants</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Access grants the caller can use to derive the document key</td>
+</tr>
+</tbody></table>
+<h3><code>POST /api/documents</code> 🔒</h3>
+<p>Creates a new encrypted document with an initial full snapshot and access grant for the creator.</p>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>encryptedSnapshot</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encrypted initial full JSON snapshot</td>
+</tr>
+<tr>
+<td><code>encryptedSnapshotIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV for the encrypted initial snapshot</td>
+</tr>
+<tr>
+<td><code>snapshotHash</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>SHA-256 hash of initial plaintext snapshot</td>
+</tr>
+<tr>
+<td><code>accessGrant</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td>Access grant for the creator</td>
+</tr>
+<tr>
+<td><code>accessGrant.encryptedSymmetricKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Document symmetric key, encrypted for the grantee</td>
+</tr>
+<tr>
+<td><code>accessGrant.iv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV used when encrypting the symmetric key</td>
+</tr>
+<tr>
+<td><code>accessGrant.salt</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Salt used in key derivation</td>
+</tr>
+<tr>
+<td><code>accessGrant.algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>201</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>document</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>document.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Newly created document ID</td>
+</tr>
+</tbody></table>
+<h3><code>GET /api/documents/:id/edits</code> 🔒</h3>
+<p>Returns the full edit history for a document, ordered by sequence number.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>edits</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Ordered list of document edits</td>
+</tr>
+<tr>
+<td><code>[].id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].encryptedPatch</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded encrypted data</td>
+</tr>
+<tr>
+<td><code>[].encryptedPatchIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded initialization vector</td>
+</tr>
+<tr>
+<td><code>[].signature</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Base64-encoded Ed25519 signature</td>
+</tr>
+<tr>
+<td><code>[].sequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].baseSequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td>Snapshot sequence this patch was based on</td>
+</tr>
+<tr>
+<td><code>[].resultingSnapshotHash</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>SHA-256 hash of plaintext snapshot after applying patch</td>
+</tr>
+<tr>
+<td><code>[].algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>[].authorIdentityId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3><code>POST /api/documents/:id/edits</code> 🔒</h3>
+<p>Appends an incremental encrypted patch and atomically updates the latest encrypted snapshot. Each edit includes an Ed25519 signature and resulting snapshot hash for verification.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>encryptedPatch</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encrypted incremental patch payload</td>
+</tr>
+<tr>
+<td><code>encryptedPatchIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV for the encrypted patch</td>
+</tr>
+<tr>
+<td><code>signature</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Author's Ed25519 signature over the plaintext patch</td>
+</tr>
+<tr>
+<td><code>baseSequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td>Current snapshot sequence expected by this patch</td>
+</tr>
+<tr>
+<td><code>sequenceNumber</code></td>
+<td>number</td>
+<td><strong>required</strong></td>
+<td>Next sequence number after applying this patch</td>
+</tr>
+<tr>
+<td><code>resultingSnapshotHash</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>SHA-256 hash of resulting plaintext snapshot</td>
+</tr>
+<tr>
+<td><code>encryptedResultingSnapshot</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encrypted resulting full snapshot for fast latest reads</td>
+</tr>
+<tr>
+<td><code>encryptedResultingSnapshotIv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV for the encrypted resulting full snapshot</td>
+</tr>
+<tr>
+<td><code>algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>201</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>edit</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>edit.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Newly created edit ID</td>
+</tr>
+</tbody></table>
+<h3><code>POST /api/documents/:id/share</code> 🔒</h3>
+<p>Grants another identity access to this document by providing them with the document's symmetric key encrypted to their public key.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Document ID</li>
+</ul>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>granteeIdentityId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Identity ID of the recipient</td>
+</tr>
+<tr>
+<td><code>encryptedSymmetricKey</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Document symmetric key, encrypted for the grantee</td>
+</tr>
+<tr>
+<td><code>iv</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>IV used when encrypting the symmetric key</td>
+</tr>
+<tr>
+<td><code>salt</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Salt used in key derivation</td>
+</tr>
+<tr>
+<td><code>algorithm</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>201</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>accessGrant</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>accessGrant.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Access grant ID</td>
+</tr>
+</tbody></table>
+<h3>Webhooks</h3>
+<p>Subscribe to real-time events on documents. Webhook payloads are signed with HMAC-SHA256 — verify using the <code>X-Webhook-Signature</code> header.</p>
+<h3><code>GET /api/webhooks</code> 🔒</h3>
+<p>Returns all webhook subscriptions owned by the authenticated identity.</p>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>webhooks</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Webhook subscriptions for the authenticated identity</td>
+</tr>
+<tr>
+<td><code>[].id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].url</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].resourceType</code></td>
+<td><code>document</code></td>
+<td><strong>required</strong></td>
+<td>Resource type</td>
+</tr>
+<tr>
+<td><code>[].resourceId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].events</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[].active</code></td>
+<td>boolean</td>
+<td><strong>required</strong></td>
+<td>Whether the webhook is active (disabled after repeated failures)</td>
+</tr>
+<tr>
+<td><code>[].createdAt</code></td>
+<td>string</td>
+<td>optional</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3><code>POST /api/webhooks</code> 🔒</h3>
+<p>Subscribe to real-time events for a specific document. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).</p>
+<p><strong>Request body:</strong></p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>url</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>HTTPS URL to receive webhook POST requests</td>
+</tr>
+<tr>
+<td><code>resourceType</code></td>
+<td><code>document</code></td>
+<td><strong>required</strong></td>
+<td>Resource type</td>
+</tr>
+<tr>
+<td><code>resourceId</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>ID of the document to watch</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>array</td>
+<td><strong>required</strong></td>
+<td>Event types to subscribe to</td>
+</tr>
+</tbody></table>
+<p><strong>Response</strong> (<code>201</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>webhook</code></td>
+<td>object</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>webhook.id</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>Webhook subscription ID</td>
+</tr>
+<tr>
+<td><code>webhook.secret</code></td>
+<td>string</td>
+<td><strong>required</strong></td>
+<td>HMAC-SHA256 signing secret. Store this securely — it is only returned once. Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing to the X-Webhook-Signature header.</td>
+</tr>
+</tbody></table>
+<h3><code>DELETE /api/webhooks/:id</code> 🔒</h3>
+<p>Permanently removes a webhook subscription. Deliveries in flight may still complete.</p>
+<p><strong>Path parameters:</strong></p>
+<ul>
+<li><code>id</code> — Webhook subscription ID</li>
+</ul>
+<p><strong>Response</strong> (<code>200</code>):</p>
+<table><thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>ok</code></td>
+<td>true</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+</tbody></table>
+  <footer style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem;">
+    Generated from <code>schema.ts</code> &mdash; <a href="https://github.com/uriva/agentdocs">GitHub</a>
+  </footer>
+</body>
 </html>

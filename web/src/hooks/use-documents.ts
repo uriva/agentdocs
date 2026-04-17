@@ -12,6 +12,7 @@ import {
   createAccessGrant as cryptoCreateAccessGrant,
   decryptAccessGrant,
   sign,
+  sha256Text,
   ALGORITHMS,
 } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
@@ -29,6 +30,10 @@ export interface DocumentHeader {
 interface RawDocument {
   id: string;
   algorithm: string;
+  encryptedSnapshot: string;
+  encryptedSnapshotIv: string;
+  snapshotHash: string;
+  snapshotSequenceNumber: number;
   createdAt: number;
   accessGrants: Array<{
     id: string;
@@ -54,10 +59,12 @@ export interface DocumentEdit {
 
 interface RawEdit {
   id: string;
-  encryptedContent: string;
-  encryptedContentIv: string;
+  encryptedPatch: string;
+  encryptedPatchIv: string;
   algorithm: string;
   signature: string;
+  baseSequenceNumber: number;
+  resultingSnapshotHash: string;
   sequenceNumber: number;
   createdAt: number;
   author: Array<{ id: string }>;
@@ -108,6 +115,26 @@ function snapshotContent(snapshot: SnapshotLike | null, raw: string): string {
   return raw;
 }
 
+function parsePatchToSnapshot(patchRaw: string): SnapshotLike | null {
+  try {
+    const parsed = JSON.parse(patchRaw) as {
+      type?: string;
+      snapshot?: string | Record<string, unknown>;
+    };
+    if (parsed && parsed.type === "replace_snapshot") {
+      if (typeof parsed.snapshot === "string") {
+        return parseSnapshot(parsed.snapshot);
+      }
+      if (parsed.snapshot && typeof parsed.snapshot === "object") {
+        return parsed.snapshot as SnapshotLike;
+      }
+    }
+  } catch {
+    // Fall back to interpreting as raw snapshot for backward compatibility.
+  }
+  return parseSnapshot(patchRaw);
+}
+
 // ─── useDocuments: list documents for the active identity ────────────────────
 
 export function useDocuments(identity: StoredIdentity | null) {
@@ -148,26 +175,19 @@ export function useDocuments(identity: StoredIdentity | null) {
             grant.grantor[0].encryptionPublicKey,
           );
 
-          const editsRes = await api<{ edits: RawEdit[] }>(
-            `/documents/${doc.id}/edits`,
-            { identity },
+          const decryptedLatest = await symmetricDecrypt(
+            {
+              ciphertext: doc.encryptedSnapshot,
+              iv: doc.encryptedSnapshotIv,
+              algorithm: doc.algorithm,
+            },
+            docKey,
           );
-          const latest = editsRes.edits[editsRes.edits.length - 1];
           let title = "Untitled Document";
           let kind = "doc";
-          if (latest) {
-            const decryptedLatest = await symmetricDecrypt(
-              {
-                ciphertext: latest.encryptedContent,
-                iv: latest.encryptedContentIv,
-                algorithm: latest.algorithm,
-              },
-              docKey,
-            );
-            const snapshot = parseSnapshot(decryptedLatest);
-            title = snapshotTitle(snapshot);
-            kind = snapshotKind(snapshot);
-          }
+          const snapshot = parseSnapshot(decryptedLatest);
+          title = snapshotTitle(snapshot);
+          kind = snapshotKind(snapshot);
 
           decrypted.push({
             id: doc.id,
@@ -204,8 +224,14 @@ export function useDocuments(identity: StoredIdentity | null) {
       // 1. Generate doc symmetric key
       const docKey = await generateDocumentKey();
 
-      // 2. Encrypt the title
-          const encTitle = await symmetricEncrypt(title, docKey);
+      const initialSnapshot =
+        kind === "spreadsheet"
+          ? JSON.stringify({ kind: "spreadsheet", title, data: emptySpreadsheet() })
+          : JSON.stringify({ kind: "doc", title, content: "" });
+
+      // 2. Encrypt snapshot and hash it
+      const encSnapshot = await symmetricEncrypt(initialSnapshot, docKey);
+      const initialHash = await sha256Text(initialSnapshot);
 
       // 3. Create access grant for ourselves (self-grant)
       const grant = await cryptoCreateAccessGrant(
@@ -219,7 +245,10 @@ export function useDocuments(identity: StoredIdentity | null) {
         method: "POST",
         identity,
         body: {
-          algorithm: encTitle.algorithm,
+          algorithm: encSnapshot.algorithm,
+          encryptedSnapshot: encSnapshot.ciphertext,
+          encryptedSnapshotIv: encSnapshot.iv,
+          snapshotHash: initialHash,
           accessGrant: {
             encryptedSymmetricKey: grant.encryptedSymmetricKey,
             iv: grant.iv,
@@ -229,13 +258,12 @@ export function useDocuments(identity: StoredIdentity | null) {
         },
       });
 
-      const initialSnapshot =
-        kind === "spreadsheet"
-          ? JSON.stringify({ kind: "spreadsheet", title, data: emptySpreadsheet() })
-          : JSON.stringify({ kind: "doc", title, content: "" });
-
-      const encrypted = await symmetricEncrypt(initialSnapshot, docKey);
-      const signatureData = new TextEncoder().encode(initialSnapshot);
+      const initialPatch = JSON.stringify({
+        type: "replace_snapshot",
+        snapshot: initialSnapshot,
+      });
+      const encryptedPatch = await symmetricEncrypt(initialPatch, docKey);
+      const signatureData = new TextEncoder().encode(initialPatch);
       const signature = await sign(
         signatureData,
         identity.keyPair.signing.privateKey,
@@ -245,11 +273,15 @@ export function useDocuments(identity: StoredIdentity | null) {
         method: "POST",
         identity,
         body: {
-          encryptedContent: encrypted.ciphertext,
-          encryptedContentIv: encrypted.iv,
+          encryptedPatch: encryptedPatch.ciphertext,
+          encryptedPatchIv: encryptedPatch.iv,
           signature,
-          sequenceNumber: 0,
-          algorithm: encrypted.algorithm,
+          baseSequenceNumber: 0,
+          sequenceNumber: 1,
+          resultingSnapshotHash: initialHash,
+          encryptedResultingSnapshot: encSnapshot.ciphertext,
+          encryptedResultingSnapshotIv: encSnapshot.iv,
+          algorithm: encryptedPatch.algorithm,
         },
       });
 
@@ -290,20 +322,20 @@ export function useDocumentEdits(
       const decrypted: DocumentEdit[] = [];
       for (const edit of res.edits) {
         try {
-          const content = await symmetricDecrypt(
+          const patchRaw = await symmetricDecrypt(
             {
-              ciphertext: edit.encryptedContent,
-              iv: edit.encryptedContentIv,
+              ciphertext: edit.encryptedPatch,
+              iv: edit.encryptedPatchIv,
               algorithm: edit.algorithm,
             },
             docKey,
           );
-          const snapshot = parseSnapshot(content);
+          const snapshot = parsePatchToSnapshot(patchRaw);
           decrypted.push({
             id: edit.id,
-            raw: content,
+            raw: patchRaw,
             snapshot: snapshot as Record<string, unknown> | null,
-            content: snapshotContent(snapshot, content),
+            content: snapshotContent(snapshot, patchRaw),
             title: snapshotTitle(snapshot),
             kind: snapshotKind(snapshot),
             sequenceNumber: edit.sequenceNumber,
@@ -330,21 +362,28 @@ export function useDocumentEdits(
   }, [refresh]);
 
   const addEdit = useCallback(
-    async (content: string) => {
+    async (newSnapshotJson: string) => {
       if (!documentId || !docKey || !identity) {
         throw new Error("Missing document context");
       }
 
-      const nextSeq =
+      const baseSeq =
         edits.length > 0
-          ? Math.max(...edits.map((e: DocumentEdit) => e.sequenceNumber)) + 1
+          ? Math.max(...edits.map((e: DocumentEdit) => e.sequenceNumber))
           : 0;
+      const nextSeq = baseSeq + 1;
 
-      // Encrypt the content
-      const encrypted = await symmetricEncrypt(content, docKey);
+      const patch = JSON.stringify({
+        type: "replace_snapshot",
+        snapshot: newSnapshotJson,
+      });
+      const resultHash = await sha256Text(newSnapshotJson);
 
-      // Sign the encrypted content
-      const signatureData = new TextEncoder().encode(encrypted.ciphertext);
+      const encryptedPatch = await symmetricEncrypt(patch, docKey);
+      const encryptedSnapshot = await symmetricEncrypt(newSnapshotJson, docKey);
+
+      // Sign plaintext patch
+      const signatureData = new TextEncoder().encode(patch);
       const signature = await sign(
         signatureData,
         identity.keyPair.signing.privateKey,
@@ -354,11 +393,15 @@ export function useDocumentEdits(
         method: "POST",
         identity,
         body: {
-          encryptedContent: encrypted.ciphertext,
-          encryptedContentIv: encrypted.iv,
+          encryptedPatch: encryptedPatch.ciphertext,
+          encryptedPatchIv: encryptedPatch.iv,
           signature,
+          baseSequenceNumber: baseSeq,
           sequenceNumber: nextSeq,
-          algorithm: encrypted.algorithm,
+          resultingSnapshotHash: resultHash,
+          encryptedResultingSnapshot: encryptedSnapshot.ciphertext,
+          encryptedResultingSnapshotIv: encryptedSnapshot.iv,
+          algorithm: encryptedPatch.algorithm,
         },
       });
 

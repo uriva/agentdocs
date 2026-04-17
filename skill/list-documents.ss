@@ -1,6 +1,6 @@
 // list-documents.ss
-// Fetches all documents the agent has access to, decrypts the latest edit,
-// and returns { documentId, kind, title, content, documentKey } for each.
+// Fetches all documents the agent has access to, decrypts latest checkpoint
+// snapshot, and returns { documentId, kind, title, content, documentKey }.
 //
 // Secrets required:
 //   agentdocs-identity
@@ -70,6 +70,8 @@ signedGet = (
 // this keeps the map function unary.
 decryptDoc = (doc: {
   id: string,
+  encryptedSnapshot: string,
+  encryptedSnapshotIv: string,
   accessGrants: {
     encryptedSymmetricKey: string,
     iv: string,
@@ -91,14 +93,9 @@ decryptDoc = (doc: {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  editsPath = stringConcat({ parts: ["/api/documents/", doc.id, "/edits"] })
-  editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
-  editsParsed = jsonParse(editsRes.body)
-  edits = editsParsed.value.edits
-  last = edits[edits.length - 1]
   contentPlain = aesDecrypt({
-    ciphertext: last.encryptedContent,
-    iv: last.encryptedContentIv,
+    ciphertext: doc.encryptedSnapshot,
+    iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
   snapshot = jsonParse(contentPlain.plaintext)

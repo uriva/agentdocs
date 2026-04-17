@@ -137,23 +137,34 @@ const res = await fetch("/api/documents", {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
+    encryptedSnapshot: await encrypt(JSON.stringify({
+      kind: "doc",
+      title: "Architecture Overview",
+      content: markdown
+    }), key),
+    encryptedSnapshotIv: iv,
+    snapshotHash: await sha256Base64url("..."),
     algorithm: "AES-GCM-256",
     accessGrant,
   })
 });
 const { document } = await res.json();
 
-// Append the first edit with encrypted content
+// Append an encrypted patch + checkpoint update
 await fetch(\`/api/documents/\${document.id}/edits\`, {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
-    encryptedContent: await encrypt(JSON.stringify({
-      kind: "doc",
-      title: "Architecture Overview",
-      content: markdown
+    encryptedPatch: await encrypt(JSON.stringify({
+      type: "replace_snapshot",
+      snapshot: JSON.stringify({ kind: "doc", title: "Architecture Overview", content: markdown })
     }), key),
-    sequenceNumber: 0,
+    encryptedPatchIv: iv,
+    baseSequenceNumber: 0,
+    sequenceNumber: 1,
+    resultingSnapshotHash: await sha256Base64url("..."),
+    encryptedResultingSnapshot: await encrypt(JSON.stringify({ kind: "doc", title: "Architecture Overview", content: markdown }), key),
+    encryptedResultingSnapshotIv: iv,
     signature: await sign("...", identity),
     algorithm: "AES-GCM-256",
   })
@@ -164,14 +175,22 @@ await fetch("/api/documents/" + document.id + "/edits", {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
-    encryptedContent: await encrypt(JSON.stringify({
-      kind: "ticket",
-      title: "Fix auth timeout",
-      status: "open",
-      priority: "high",
-      content: details
+    encryptedPatch: await encrypt(JSON.stringify({
+      type: "replace_snapshot",
+      snapshot: JSON.stringify({
+        kind: "ticket",
+        title: "Fix auth timeout",
+        status: "open",
+        priority: "high",
+        content: details
+      })
     }), key),
-    sequenceNumber: 1,
+    encryptedPatchIv: iv,
+    baseSequenceNumber: 1,
+    sequenceNumber: 2,
+    resultingSnapshotHash: await sha256Base64url("..."),
+    encryptedResultingSnapshot: await encrypt("...", key),
+    encryptedResultingSnapshotIv: iv,
     signature: await sign("...", identity),
     algorithm: "AES-GCM-256",
   })

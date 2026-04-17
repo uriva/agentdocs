@@ -77,6 +77,12 @@ export interface SignedRequest {
   body?: string;
 }
 
+export async function sha256Text(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return base64urlEncode(digest);
+}
+
 // ─── Key Generation ──────────────────────────────────────────────────────────
 
 export async function generateIdentityKeyPair(): Promise<IdentityKeyPair> {

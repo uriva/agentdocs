@@ -58,11 +58,17 @@ documentsRouter.post("/", async (c) => {
 
   const {
     algorithm,
+    encryptedSnapshot,
+    encryptedSnapshotIv,
+    snapshotHash,
     accessGrant,
   } = parsed.data;
 
   const doc = await createDocument({
     algorithm,
+    encryptedSnapshot,
+    encryptedSnapshotIv,
+    snapshotHash,
     creatorIdentityId: identityId,
     accessGrant,
   });
@@ -85,24 +91,48 @@ documentsRouter.post("/:id/edits", async (c) => {
   }
 
   const {
-    encryptedContent,
-    encryptedContentIv,
+    encryptedPatch,
+    encryptedPatchIv,
     signature,
+    baseSequenceNumber,
     sequenceNumber,
+    resultingSnapshotHash,
+    encryptedResultingSnapshot,
+    encryptedResultingSnapshotIv,
     algorithm,
   } = parsed.data;
 
-  const edit = await addEdit({
-    documentId,
-    encryptedContent,
-    encryptedContentIv,
-    signature,
-    sequenceNumber,
-    algorithm,
-    authorIdentityId: identityId,
-  });
+  let edit;
+  try {
+    edit = await addEdit({
+      documentId,
+      encryptedPatch,
+      encryptedPatchIv,
+      signature,
+      baseSequenceNumber,
+      sequenceNumber,
+      resultingSnapshotHash,
+      encryptedResultingSnapshot,
+      encryptedResultingSnapshotIv,
+      algorithm,
+      authorIdentityId: identityId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to add edit";
+    if (message.includes("Base sequence mismatch")) {
+      return c.json({ error: message }, 409);
+    }
+    throw err;
+  }
 
-  fireWebhooks("document", documentId, "document.edited", identityId);
+  // Re-read document to include current snapshot metadata in webhook payload.
+  const updated = await getDocumentForIdentity(documentId, identityId);
+
+  fireWebhooks("document", documentId, "document.edited", identityId, {
+    sequenceNumber,
+    snapshotSequenceNumber: updated?.snapshotSequenceNumber,
+    snapshotHash: updated?.snapshotHash,
+  });
 
   return c.json({ edit }, 201);
 });

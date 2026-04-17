@@ -97,6 +97,12 @@ export const ListDocumentsResponse = z.object({
   documents: z.array(z.object({
     id: z.string(),
     algorithm,
+    encryptedSnapshot: encrypted,
+    encryptedSnapshotIv: iv,
+    snapshotHash: z.string().describe("SHA-256 hash of latest plaintext snapshot"),
+    snapshotSequenceNumber: z.number().describe(
+      "Sequence number of latest encrypted snapshot",
+    ),
     createdAt: z.string().optional(),
   })).describe("Documents the identity has access to"),
 }).describe("List of accessible documents");
@@ -105,6 +111,12 @@ export const GetDocumentResponse = z.object({
   document: z.object({
     id: z.string(),
     algorithm,
+    encryptedSnapshot: encrypted,
+    encryptedSnapshotIv: iv,
+    snapshotHash: z.string().describe("SHA-256 hash of latest plaintext snapshot"),
+    snapshotSequenceNumber: z.number().describe(
+      "Sequence number of latest encrypted snapshot",
+    ),
     createdAt: z.string().optional(),
     accessGrants: z.array(z.unknown()).describe(
       "Access grants the caller can use to derive the document key",
@@ -114,6 +126,9 @@ export const GetDocumentResponse = z.object({
 
 export const CreateDocumentRequest = z.object({
   algorithm,
+  encryptedSnapshot: encrypted.describe("Encrypted initial full JSON snapshot"),
+  encryptedSnapshotIv: iv.describe("IV for the encrypted initial snapshot"),
+  snapshotHash: z.string().describe("SHA-256 hash of initial plaintext snapshot"),
   accessGrant: AccessGrantInput.describe("Access grant for the creator"),
 }).describe("Create a new encrypted document");
 
@@ -126,10 +141,16 @@ export const CreateDocumentResponse = z.object({
 export const ListEditsResponse = z.object({
   edits: z.array(z.object({
     id: z.string(),
-    encryptedContent: encrypted,
-    encryptedContentIv: iv,
+    encryptedPatch: encrypted,
+    encryptedPatchIv: iv,
     signature,
     sequenceNumber: z.number(),
+    baseSequenceNumber: z.number().describe(
+      "Snapshot sequence this patch was based on",
+    ),
+    resultingSnapshotHash: z.string().describe(
+      "SHA-256 hash of plaintext snapshot after applying patch",
+    ),
     algorithm,
     authorIdentityId: z.string(),
     createdAt: z.string().optional(),
@@ -137,15 +158,27 @@ export const ListEditsResponse = z.object({
 }).describe("Edit history for a document");
 
 export const CreateEditRequest = z.object({
-  encryptedContent: encrypted.describe(
-    "Encrypted edit content (full document snapshot or delta)",
+  encryptedPatch: encrypted.describe(
+    "Encrypted incremental patch payload",
   ),
-  encryptedContentIv: iv.describe("IV for the encrypted content"),
+  encryptedPatchIv: iv.describe("IV for the encrypted patch"),
   signature: signature.describe(
-    "Author's Ed25519 signature over the plaintext content",
+    "Author's Ed25519 signature over the plaintext patch",
+  ),
+  baseSequenceNumber: z.number().int().min(0).describe(
+    "Current snapshot sequence expected by this patch",
   ),
   sequenceNumber: z.number().int().min(0).describe(
-    "Monotonically increasing edit sequence number",
+    "Next sequence number after applying this patch",
+  ),
+  resultingSnapshotHash: z.string().describe(
+    "SHA-256 hash of resulting plaintext snapshot",
+  ),
+  encryptedResultingSnapshot: encrypted.describe(
+    "Encrypted resulting full snapshot for fast latest reads",
+  ),
+  encryptedResultingSnapshotIv: iv.describe(
+    "IV for the encrypted resulting full snapshot",
   ),
   algorithm,
 }).describe("Add a new edit to a document");
@@ -324,7 +357,7 @@ export const routes: RouteEntry[] = [
     path: "/api/documents",
     summary: "Create a document",
     description:
-      "Creates a new encrypted document with an access grant for the creator.",
+      "Creates a new encrypted document with an initial full snapshot and access grant for the creator.",
     auth: true,
     request: CreateDocumentRequest,
     response: CreateDocumentResponse,
@@ -346,8 +379,8 @@ export const routes: RouteEntry[] = [
     path: "/api/documents/:id/edits",
     summary: "Add a document edit",
     description:
-      "Appends a new edit (encrypted content snapshot) to a document's history. " +
-      "Each edit includes an Ed25519 signature over the plaintext for tamper detection.",
+      "Appends an incremental encrypted patch and atomically updates the latest encrypted snapshot. " +
+      "Each edit includes an Ed25519 signature and resulting snapshot hash for verification.",
     auth: true,
     request: CreateEditRequest,
     response: CreateEditResponse,

@@ -18,16 +18,27 @@ const _schema = i.schema({
     documents: i.entity({
       // Algorithm used for encryption
       algorithm: i.string(),
+      // Latest encrypted full snapshot for fast reads
+      encryptedSnapshot: i.string(),
+      encryptedSnapshotIv: i.string(),
+      // Hash of latest plaintext snapshot (for optional verification)
+      snapshotHash: i.string(),
+      // Latest sequence number represented by encryptedSnapshot
+      snapshotSequenceNumber: i.number().indexed(),
       createdAt: i.number(),
     }),
     edits: i.entity({
-      // Content encrypted with the document's symmetric key
-      encryptedContent: i.string(),
-      encryptedContentIv: i.string(),
+      // Incremental patch encrypted with the document's symmetric key
+      encryptedPatch: i.string(),
+      encryptedPatchIv: i.string(),
       // Ed25519 signature of the encrypted content by the author
       signature: i.string(),
-      // Monotonically increasing per document
+      // Monotonically increasing per document (next sequence)
       sequenceNumber: i.number().indexed(),
+      // Sequence this patch is based on
+      baseSequenceNumber: i.number(),
+      // Hash of plaintext snapshot after applying patch
+      resultingSnapshotHash: i.string(),
       // Algorithm used
       algorithm: i.string(),
       createdAt: i.number(),

@@ -72,11 +72,13 @@ signedGet = (
   })
 }
 
-// Decrypt one document: unwrap grant → recover K → decrypt title and the
-// latest content edit. Reads the identity secret each call because
+// Decrypt one document: unwrap grant → recover K → decrypt latest checkpoint
+// snapshot. Reads the identity secret each call because
 // safescript has no closures — map callbacks must be unary.
 decryptOne = (doc: {
   id: string,
+  encryptedSnapshot: string,
+  encryptedSnapshotIv: string,
   accessGrants: {
     encryptedSymmetricKey: string,
     iv: string,
@@ -104,14 +106,9 @@ decryptOne = (doc: {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  editsPath = stringConcat({ parts: ["/api/documents/", doc.id, "/edits"] })
-  editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
-  editsParsed = jsonParse(editsRes.body)
-  edits = editsParsed.value.edits
-  last = edits[edits.length - 1]
   content = aesDecrypt({
-    ciphertext: last.encryptedContent,
-    iv: last.encryptedContentIv,
+    ciphertext: doc.encryptedSnapshot,
+    iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
   snapshot = jsonParse(content.plaintext)

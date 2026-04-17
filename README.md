@@ -130,6 +130,10 @@ Returns all documents the authenticated identity has access to via access grants
 | `documents` | array | **required** | Documents the identity has access to |
 | `[].id` | string | **required** |  |
 | `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `[].encryptedSnapshot` | string | **required** | Base64-encoded encrypted data |
+| `[].encryptedSnapshotIv` | string | **required** | Base64-encoded initialization vector |
+| `[].snapshotHash` | string | **required** | SHA-256 hash of latest plaintext snapshot |
+| `[].snapshotSequenceNumber` | number | **required** | Sequence number of latest encrypted snapshot |
 | `[].createdAt` | string | optional |  |
 
 ### `GET /api/documents/:id` 🔒
@@ -147,18 +151,25 @@ Returns a single document with the caller's access grants. 404 if the caller has
 | `document` | object | **required** |  |
 | `document.id` | string | **required** |  |
 | `document.algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `document.encryptedSnapshot` | string | **required** | Base64-encoded encrypted data |
+| `document.encryptedSnapshotIv` | string | **required** | Base64-encoded initialization vector |
+| `document.snapshotHash` | string | **required** | SHA-256 hash of latest plaintext snapshot |
+| `document.snapshotSequenceNumber` | number | **required** | Sequence number of latest encrypted snapshot |
 | `document.createdAt` | string | optional |  |
 | `document.accessGrants` | array | **required** | Access grants the caller can use to derive the document key |
 
 ### `POST /api/documents` 🔒
 
-Creates a new encrypted document with an access grant for the creator.
+Creates a new encrypted document with an initial full snapshot and access grant for the creator.
 
 **Request body:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `encryptedSnapshot` | string | **required** | Encrypted initial full JSON snapshot |
+| `encryptedSnapshotIv` | string | **required** | IV for the encrypted initial snapshot |
+| `snapshotHash` | string | **required** | SHA-256 hash of initial plaintext snapshot |
 | `accessGrant` | object | **required** | Access grant for the creator |
 | `accessGrant.encryptedSymmetricKey` | string | **required** | Document symmetric key, encrypted for the grantee |
 | `accessGrant.iv` | string | **required** | IV used when encrypting the symmetric key |
@@ -186,17 +197,19 @@ Returns the full edit history for a document, ordered by sequence number.
 |-------|------|----------|-------------|
 | `edits` | array | **required** | Ordered list of document edits |
 | `[].id` | string | **required** |  |
-| `[].encryptedContent` | string | **required** | Base64-encoded encrypted data |
-| `[].encryptedContentIv` | string | **required** | Base64-encoded initialization vector |
+| `[].encryptedPatch` | string | **required** | Base64-encoded encrypted data |
+| `[].encryptedPatchIv` | string | **required** | Base64-encoded initialization vector |
 | `[].signature` | string | **required** | Base64-encoded Ed25519 signature |
 | `[].sequenceNumber` | number | **required** |  |
+| `[].baseSequenceNumber` | number | **required** | Snapshot sequence this patch was based on |
+| `[].resultingSnapshotHash` | string | **required** | SHA-256 hash of plaintext snapshot after applying patch |
 | `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
 | `[].authorIdentityId` | string | **required** |  |
 | `[].createdAt` | string | optional |  |
 
 ### `POST /api/documents/:id/edits` 🔒
 
-Appends a new edit (encrypted content snapshot) to a document's history. Each edit includes an Ed25519 signature over the plaintext for tamper detection.
+Appends an incremental encrypted patch and atomically updates the latest encrypted snapshot. Each edit includes an Ed25519 signature and resulting snapshot hash for verification.
 
 **Path parameters:**
 
@@ -206,10 +219,14 @@ Appends a new edit (encrypted content snapshot) to a document's history. Each ed
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `encryptedContent` | string | **required** | Encrypted edit content (full document snapshot or delta) |
-| `encryptedContentIv` | string | **required** | IV for the encrypted content |
-| `signature` | string | **required** | Author's Ed25519 signature over the plaintext content |
-| `sequenceNumber` | number | **required** | Monotonically increasing edit sequence number |
+| `encryptedPatch` | string | **required** | Encrypted incremental patch payload |
+| `encryptedPatchIv` | string | **required** | IV for the encrypted patch |
+| `signature` | string | **required** | Author's Ed25519 signature over the plaintext patch |
+| `baseSequenceNumber` | number | **required** | Current snapshot sequence expected by this patch |
+| `sequenceNumber` | number | **required** | Next sequence number after applying this patch |
+| `resultingSnapshotHash` | string | **required** | SHA-256 hash of resulting plaintext snapshot |
+| `encryptedResultingSnapshot` | string | **required** | Encrypted resulting full snapshot for fast latest reads |
+| `encryptedResultingSnapshotIv` | string | **required** | IV for the encrypted resulting full snapshot |
 | `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
 
 **Response** (`201`):
@@ -299,3 +316,4 @@ Permanently removes a webhook subscription. Deliveries in flight may still compl
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `ok` | true | **required** |  |
+

@@ -95,15 +95,10 @@ getDocument = (documentId: string): {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  // Fetch + decrypt the latest snapshot edit.
-  editsPath = stringConcat({ parts: ["/api/documents/", documentId, "/edits"] })
-  editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
-  editsParsed = jsonParse(editsRes.body)
-  edits = editsParsed.value.edits
-  last = edits[edits.length - 1]
+  // Decrypt latest checkpoint snapshot directly from document row.
   content = aesDecrypt({
-    ciphertext: last.encryptedContent,
-    iv: last.encryptedContentIv,
+    ciphertext: doc.encryptedSnapshot,
+    iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
   snapshot = jsonParse(content.plaintext)
@@ -115,6 +110,6 @@ getDocument = (documentId: string): {
     title: data.title,
     content: data.content,
     documentKey: docKey.plaintext,
-    sequenceNumber: last.sequenceNumber
+    sequenceNumber: doc.snapshotSequenceNumber
   }
 }

@@ -115,6 +115,9 @@ export async function createIdentity(params: {
 
 export async function createDocument(params: {
   algorithm: string;
+  encryptedSnapshot: string;
+  encryptedSnapshotIv: string;
+  snapshotHash: string;
   creatorIdentityId: string;
   accessGrant: {
     encryptedSymmetricKey: string;
@@ -130,6 +133,10 @@ export async function createDocument(params: {
     // Create the document
     ["update", "documents", docId, {
       algorithm: params.algorithm,
+      encryptedSnapshot: params.encryptedSnapshot,
+      encryptedSnapshotIv: params.encryptedSnapshotIv,
+      snapshotHash: params.snapshotHash,
+      snapshotSequenceNumber: 0,
       createdAt: Date.now(),
     }],
     // Link document to creator
@@ -153,23 +160,51 @@ export async function createDocument(params: {
 
 export async function addEdit(params: {
   documentId: string;
-  encryptedContent: string;
-  encryptedContentIv: string;
+  encryptedPatch: string;
+  encryptedPatchIv: string;
   signature: string;
+  baseSequenceNumber: number;
   sequenceNumber: number;
+  resultingSnapshotHash: string;
+  encryptedResultingSnapshot: string;
+  encryptedResultingSnapshotIv: string;
   algorithm: string;
   authorIdentityId: string;
 }): Promise<{ id: string }> {
   const editId = crypto.randomUUID();
 
+  const docCheck = await query({
+    documents: {
+      $: { where: { id: params.documentId } },
+    },
+  });
+  const docs = (docCheck.documents as Array<Record<string, unknown>>) || [];
+  if (docs.length === 0) {
+    throw new Error("Document not found");
+  }
+  const currentSeq = (docs[0].snapshotSequenceNumber as number) || 0;
+  if (currentSeq !== params.baseSequenceNumber) {
+    throw new Error(
+      `Base sequence mismatch: expected ${currentSeq}, got ${params.baseSequenceNumber}`,
+    );
+  }
+
   await transact([
     ["update", "edits", editId, {
-      encryptedContent: params.encryptedContent,
-      encryptedContentIv: params.encryptedContentIv,
+      encryptedPatch: params.encryptedPatch,
+      encryptedPatchIv: params.encryptedPatchIv,
       signature: params.signature,
+      baseSequenceNumber: params.baseSequenceNumber,
       sequenceNumber: params.sequenceNumber,
+      resultingSnapshotHash: params.resultingSnapshotHash,
       algorithm: params.algorithm,
       createdAt: Date.now(),
+    }],
+    ["update", "documents", params.documentId, {
+      encryptedSnapshot: params.encryptedResultingSnapshot,
+      encryptedSnapshotIv: params.encryptedResultingSnapshotIv,
+      snapshotHash: params.resultingSnapshotHash,
+      snapshotSequenceNumber: params.sequenceNumber,
     }],
     ["link", "edits", editId, { document: params.documentId }],
     ["link", "edits", editId, { author: params.authorIdentityId }],

@@ -1,10 +1,10 @@
 // add-edit.ss
-// Appends a new encrypted JSON snapshot edit to an existing document.
+// Appends a new encrypted JSON patch edit to an existing document.
 //
 // Needs the document's AES key (returned from create-document.ss or
 // recovered via unwrap-grant logic). Fetches the current edit history
-// to pick the next sequenceNumber, encrypts the new snapshot JSON,
-// signs it, and POSTs to /api/documents/:id/edits.
+// to pick base sequence, builds an encrypted replace_snapshot patch,
+// and updates the document checkpoint in the same API call.
 //
 // Secrets required:
 //   agentdocs-identity
@@ -99,20 +99,29 @@ addEdit = (
 ): { status: number, body: string, sequenceNumber: number } => {
   identity = loadIdentity()
 
-  // Ask the server for the current edit history to pick the next seq.
-  editsPath = stringConcat({ parts: ["/api/documents/", documentId, "/edits"] })
-  historyRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
-  historyParsed = jsonParse(historyRes.body)
-  nextSeq = historyParsed.value.edits.length
+  // Get current snapshot sequence as patch base.
+  docPath = stringConcat({ parts: ["/api/documents/", documentId] })
+  docRes = signedGet(docPath.result, identity.id, identity.signingPrivateKey)
+  docParsed = jsonParse(docRes.body)
+  baseSeq = docParsed.value.document.snapshotSequenceNumber
+  nextSeq = baseSeq + 1
 
-  // Encrypt + sign the new snapshot, then append.
-  enc = aesEncrypt({ plaintext: newSnapshotJson, key: documentKey })
-  sig = ed25519Sign({ data: newSnapshotJson, privateKey: identity.signingPrivateKey })
+  // Encrypt + sign the patch, include encrypted resulting snapshot.
+  patch = jsonStringify({ type: "replace_snapshot", snapshot: newSnapshotJson })
+  patchHash = sha256(newSnapshotJson)
+  encPatch = aesEncrypt({ plaintext: patch.text, key: documentKey })
+  encSnapshot = aesEncrypt({ plaintext: newSnapshotJson, key: documentKey })
+  sig = ed25519Sign({ data: patch.text, privateKey: identity.signingPrivateKey })
+  editsPath = stringConcat({ parts: ["/api/documents/", documentId, "/edits"] })
   editBody = jsonStringify({
-    encryptedContent: enc.ciphertext,
-    encryptedContentIv: enc.iv,
+    encryptedPatch: encPatch.ciphertext,
+    encryptedPatchIv: encPatch.iv,
     signature: sig.signature,
+    baseSequenceNumber: baseSeq,
     sequenceNumber: nextSeq,
+    resultingSnapshotHash: patchHash.hash,
+    encryptedResultingSnapshot: encSnapshot.ciphertext,
+    encryptedResultingSnapshotIv: encSnapshot.iv,
     algorithm: "AES-GCM-256"
   })
   editRes = signedPost(editsPath.result, editBody.text, identity.id, identity.signingPrivateKey)

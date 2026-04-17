@@ -55,6 +55,10 @@ Response (200, JSON):
     Array items:
     - id (string): 
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
+    - encryptedSnapshot (string): Base64-encoded encrypted data
+    - encryptedSnapshotIv (string): Base64-encoded initialization vector
+    - snapshotHash (string): SHA-256 hash of latest plaintext snapshot
+    - snapshotSequenceNumber (number): Sequence number of latest encrypted snapshot
     - createdAt (string): 
 
 ### GET /api/documents/:id [auth required]
@@ -66,14 +70,21 @@ Response (200, JSON):
   - document (object): 
     - id (string): 
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
+    - encryptedSnapshot (string): Base64-encoded encrypted data
+    - encryptedSnapshotIv (string): Base64-encoded initialization vector
+    - snapshotHash (string): SHA-256 hash of latest plaintext snapshot
+    - snapshotSequenceNumber (number): Sequence number of latest encrypted snapshot
     - createdAt (string): 
     - accessGrants (array): Access grants the caller can use to derive the document key
 
 ### POST /api/documents [auth required]
 Create a document
-Creates a new encrypted document with an access grant for the creator.
+Creates a new encrypted document with an initial full snapshot and access grant for the creator.
 Request body (JSON):
   - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
+  - encryptedSnapshot (string, required): Encrypted initial full JSON snapshot
+  - encryptedSnapshotIv (string, required): IV for the encrypted initial snapshot
+  - snapshotHash (string, required): SHA-256 hash of initial plaintext snapshot
   - accessGrant (object, required): Access grant for the creator
     - encryptedSymmetricKey (string, required): Document symmetric key, encrypted for the grantee
     - iv (string, required): IV used when encrypting the symmetric key
@@ -92,24 +103,30 @@ Response (200, JSON):
   - edits (array): Ordered list of document edits
     Array items:
     - id (string): 
-    - encryptedContent (string): Base64-encoded encrypted data
-    - encryptedContentIv (string): Base64-encoded initialization vector
+    - encryptedPatch (string): Base64-encoded encrypted data
+    - encryptedPatchIv (string): Base64-encoded initialization vector
     - signature (string): Base64-encoded Ed25519 signature
     - sequenceNumber (number): 
+    - baseSequenceNumber (number): Snapshot sequence this patch was based on
+    - resultingSnapshotHash (string): SHA-256 hash of plaintext snapshot after applying patch
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
     - authorIdentityId (string): 
     - createdAt (string): 
 
 ### POST /api/documents/:id/edits [auth required]
 Add a document edit
-Appends a new edit (encrypted content snapshot) to a document's history. Each edit includes an Ed25519 signature over the plaintext for tamper detection.
+Appends an incremental encrypted patch and atomically updates the latest encrypted snapshot. Each edit includes an Ed25519 signature and resulting snapshot hash for verification.
 Path params:
   - id: Document ID
 Request body (JSON):
-  - encryptedContent (string, required): Encrypted edit content (full document snapshot or delta)
-  - encryptedContentIv (string, required): IV for the encrypted content
-  - signature (string, required): Author's Ed25519 signature over the plaintext content
-  - sequenceNumber (number, required): Monotonically increasing edit sequence number
+  - encryptedPatch (string, required): Encrypted incremental patch payload
+  - encryptedPatchIv (string, required): IV for the encrypted patch
+  - signature (string, required): Author's Ed25519 signature over the plaintext patch
+  - baseSequenceNumber (number, required): Current snapshot sequence expected by this patch
+  - sequenceNumber (number, required): Next sequence number after applying this patch
+  - resultingSnapshotHash (string, required): SHA-256 hash of resulting plaintext snapshot
+  - encryptedResultingSnapshot (string, required): Encrypted resulting full snapshot for fast latest reads
+  - encryptedResultingSnapshotIv (string, required): IV for the encrypted resulting full snapshot
   - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
 Response (201, JSON):
   - edit (object): 
