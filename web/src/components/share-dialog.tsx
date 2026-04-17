@@ -16,11 +16,8 @@ import { Share2, Check, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import {
   createAccessGrant as cryptoCreateAccessGrant,
-  ALGORITHMS,
 } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 
 interface ShareDialogProps {
   documentId: string;

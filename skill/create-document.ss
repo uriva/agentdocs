@@ -1,11 +1,11 @@
 // create-document.ss
-// Creates an encrypted document and appends its first edit.
+// Creates an encrypted JSON document and appends its first edit.
 //
 // Reads the agent's identity from `agentdocs-identity` (base64url JSON
 // bundle exported from the agentdocs web UI), generates a fresh AES key,
-// encrypts title + content with it, wraps the key for the creator (self
-// access grant), signs and sends POST /api/documents, then signs and
-// sends the first edit to /api/documents/:id/edits.
+// wraps the key for the creator (self access grant), signs and sends
+// POST /api/documents, then appends a first edit containing a JSON
+// snapshot: { kind: "doc", title, content }.
 //
 // Returns { documentId, documentKey, status, body }. Persist documentId
 // and documentKey — documentKey is the only thing that can decrypt the
@@ -112,14 +112,10 @@ createDocument = (
 ): { documentId: string, documentKey: string, status: number, body: string } => {
   identity = loadIdentity()
   docKey = aesGenerateKey()
-  encTitle = aesEncrypt({ plaintext: title, key: docKey.key })
   grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
 
   // POST /api/documents — creates the document with a self access grant.
   createBody = jsonStringify({
-    type: "doc",
-    encryptedTitle: encTitle.ciphertext,
-    encryptedTitleIv: encTitle.iv,
     algorithm: "AES-GCM-256",
     accessGrant: grant
   })
@@ -127,9 +123,10 @@ createDocument = (
   parsed = jsonParse(createRes.body)
   docId = parsed.value.document.id
 
-  // POST /api/documents/:id/edits — append the first edit with encrypted content.
-  encContent = aesEncrypt({ plaintext: content, key: docKey.key })
-  contentSig = ed25519Sign({ data: content, privateKey: identity.signingPrivateKey })
+  // POST /api/documents/:id/edits — append first JSON snapshot.
+  snapshot = jsonStringify({ kind: "doc", title: title, content: content })
+  encContent = aesEncrypt({ plaintext: snapshot.text, key: docKey.key })
+  contentSig = ed25519Sign({ data: snapshot.text, privateKey: identity.signingPrivateKey })
   editBody = jsonStringify({
     encryptedContent: encContent.ciphertext,
     encryptedContentIv: encContent.iv,

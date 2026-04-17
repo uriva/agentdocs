@@ -6,13 +6,11 @@ import {
   getDocumentEdits,
   getDocumentForIdentity,
   getDocumentsForIdentity,
-  updateDocumentTitle,
 } from "../db.ts";
 import {
   CreateDocumentRequest,
   CreateEditRequest,
   ShareDocumentRequest,
-  UpdateDocumentTitleRequest,
 } from "../schema.ts";
 import type { AppEnv } from "../types.ts";
 import { fireWebhooks } from "./webhooks.ts";
@@ -59,17 +57,11 @@ documentsRouter.post("/", async (c) => {
   }
 
   const {
-    type,
-    encryptedTitle,
-    encryptedTitleIv,
     algorithm,
     accessGrant,
   } = parsed.data;
 
   const doc = await createDocument({
-    type,
-    encryptedTitle,
-    encryptedTitleIv,
     algorithm,
     creatorIdentityId: identityId,
     accessGrant,
@@ -98,7 +90,6 @@ documentsRouter.post("/:id/edits", async (c) => {
     signature,
     sequenceNumber,
     algorithm,
-    editType,
   } = parsed.data;
 
   const edit = await addEdit({
@@ -109,7 +100,6 @@ documentsRouter.post("/:id/edits", async (c) => {
     sequenceNumber,
     algorithm,
     authorIdentityId: identityId,
-    editType,
   });
 
   fireWebhooks("document", documentId, "document.edited", identityId);
@@ -122,50 +112,6 @@ documentsRouter.get("/:id/edits", async (c) => {
   const documentId = c.req.param("id");
   const edits = await getDocumentEdits(documentId);
   return c.json({ edits });
-});
-
-// Rename a document (update encrypted title)
-documentsRouter.patch("/:id", async (c) => {
-  const identityId = c.get("identityId") as string;
-  const documentId = c.req.param("id");
-  const raw = await parseBody(c);
-  const parsed = UpdateDocumentTitleRequest.safeParse(raw);
-
-  if (!parsed.success) {
-    return c.json({
-      error: parsed.error.issues.map((i: { message: string }) => i.message)
-        .join("; "),
-    }, 400);
-  }
-
-  const { encryptedTitle, encryptedTitleIv, algorithm } = parsed.data;
-
-  // Update the document title
-  await updateDocumentTitle({
-    documentId,
-    encryptedTitle,
-    encryptedTitleIv,
-    algorithm,
-  });
-
-  // Also record the rename as an edit so it appears in history
-  const existingEdits = await getDocumentEdits(documentId);
-  const nextSeq = existingEdits.length;
-
-  await addEdit({
-    documentId,
-    encryptedContent: encryptedTitle,
-    encryptedContentIv: encryptedTitleIv,
-    signature: "", // Title edits don't require a signature
-    sequenceNumber: nextSeq,
-    algorithm,
-    authorIdentityId: identityId,
-    editType: "title",
-  });
-
-  fireWebhooks("document", documentId, "document.edited", identityId);
-
-  return c.json({ ok: true });
 });
 
 // Share a document (create access grant for another identity)

@@ -1,7 +1,6 @@
 // list-documents.ss
-// Fetches all documents the agent has access to and decrypts their titles.
-// Returns an array of { documentId, title, documentKey } — persist
-// documentKey locally if you want to avoid re-deriving it on every access.
+// Fetches all documents the agent has access to, decrypts the latest edit,
+// and returns { documentId, kind, title, content, documentKey } for each.
 //
 // Secrets required:
 //   agentdocs-identity
@@ -66,20 +65,18 @@ signedGet = (
   })
 }
 
-// Decrypt one document's title. Re-reads the identity secret each call; the
+// Decrypt one document snapshot. Re-reads the identity secret each call; the
 // permission surface already covers it and safescript has no closures, so
 // this keeps the map function unary.
 decryptDoc = (doc: {
   id: string,
-  encryptedTitle: string,
-  encryptedTitleIv: string,
   accessGrants: {
     encryptedSymmetricKey: string,
     iv: string,
     salt: string,
     grantor: { encryptionPublicKey: string }[]
   }[]
-}): { documentId: string, title: string, documentKey: string } => {
+}): { documentId: string, kind: string, title: string, content: string, documentKey: string } => {
   identity = loadIdentity()
   grant = doc.accessGrants[0]
   grantorPub = grant.grantor[0].encryptionPublicKey
@@ -94,20 +91,29 @@ decryptDoc = (doc: {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  title = aesDecrypt({
-    ciphertext: doc.encryptedTitle,
-    iv: doc.encryptedTitleIv,
+  editsPath = stringConcat({ parts: ["/api/documents/", doc.id, "/edits"] })
+  editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
+  editsParsed = jsonParse(editsRes.body)
+  edits = editsParsed.value.edits
+  last = edits[edits.length - 1]
+  contentPlain = aesDecrypt({
+    ciphertext: last.encryptedContent,
+    iv: last.encryptedContentIv,
     key: docKey.plaintext
   })
+  snapshot = jsonParse(contentPlain.plaintext)
+  data = snapshot.value
   return {
     documentId: doc.id,
-    title: title.plaintext,
+    kind: data.kind,
+    title: data.title,
+    content: data.content,
     documentKey: docKey.plaintext
   }
 }
 
 listDocuments = (): {
-  documents: { documentId: string, title: string, documentKey: string }[]
+  documents: { documentId: string, kind: string, title: string, content: string, documentKey: string }[]
 } => {
   identity = loadIdentity()
   res = signedGet("/api/documents", identity.id, identity.signingPrivateKey)

@@ -52,7 +52,7 @@ async function signPayload(secret: string, payload: string): Promise<string> {
  * recorded but never propagated to the caller.
  */
 export function fireWebhooks(
-  resourceType: "document" | "ticket",
+  resourceType: "document",
   resourceId: string,
   event: string,
   actorIdentityId: string,

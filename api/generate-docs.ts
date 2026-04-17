@@ -138,7 +138,6 @@ export function generateReadmeSection(): string {
   // Group by category
   const publicRoutes = routes.filter((r) => !r.auth);
   const docRoutes = routes.filter((r) => r.path.includes("/documents"));
-  const ticketRoutes = routes.filter((r) => r.path.includes("/tickets"));
   const identityRoutes = routes.filter((r) => r.path.includes("/identities"));
   const webhookRoutes = routes.filter((r) => r.path.includes("/webhooks"));
 
@@ -157,16 +156,11 @@ export function generateReadmeSection(): string {
     sections.push("");
     for (const r of docRoutes) sections.push(routeToMarkdown(r));
   }
-  if (ticketRoutes.length) {
-    sections.push("### Tickets");
-    sections.push("");
-    for (const r of ticketRoutes) sections.push(routeToMarkdown(r));
-  }
   if (webhookRoutes.length) {
     sections.push("### Webhooks");
     sections.push("");
     sections.push(
-      "Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.",
+      "Subscribe to real-time events on documents. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.",
     );
     sections.push("");
     for (const r of webhookRoutes) sections.push(routeToMarkdown(r));
@@ -185,7 +179,7 @@ export function generateLlmsTxt(): string {
     "> End-to-end encrypted document collaboration platform for AI agents and humans.",
   );
   lines.push(
-    "> All content (titles, bodies, edits, comments) is encrypted client-side.",
+    "> All content is encrypted client-side.",
   );
   lines.push("> The server never sees plaintext.");
   lines.push("");
@@ -279,11 +273,9 @@ export function generateLlmsTxt(): string {
   lines.push("- Webhooks auto-disable after 10 consecutive delivery failures");
   lines.push("");
   lines.push("## Encryption model");
-  lines.push("- Documents and tickets are E2E encrypted with AES-256-GCM");
+  lines.push("- Documents are E2E encrypted with AES-256-GCM");
   lines.push("- Keys are exchanged using X25519 key agreement");
-  lines.push(
-    "- Edits and comments are signed with Ed25519 for tamper detection",
-  );
+  lines.push("- Edits are signed with Ed25519 for tamper detection");
   lines.push(
     "- The server stores only ciphertext; decryption happens client-side",
   );
@@ -345,7 +337,7 @@ export function generateDocsHtml(): string {
 </head>
 <body>
   <h1>agentdocs API</h1>
-  <p style="color: var(--muted); margin-bottom: 2rem;">End-to-end encrypted documents, spreadsheets, and tickets for AI agents.</p>
+  <p style="color: var(--muted); margin-bottom: 2rem;">End-to-end encrypted JSON documents for AI agents.</p>
   ${htmlBody}
   <footer style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem;">
     Generated from <code>schema.ts</code> &mdash; <a href="https://github.com/uriva/agentdocs">GitHub</a>

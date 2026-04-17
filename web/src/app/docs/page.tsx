@@ -244,13 +244,6 @@ function groupEndpoints(endpoints: Endpoint[]): EndpointGroup[] {
     let group = "General";
     if (ep.path.includes("/documents/by-slug")) group = "Wiki / Slugs";
     else if (ep.path.includes("/documents")) group = "Documents";
-    else if (ep.path.includes("/tickets") && ep.path.includes("/comments"))
-      group = "Ticket Comments";
-    else if (ep.path.includes("/tickets") && ep.path.includes("/share"))
-      group = "Ticket Sharing";
-    else if (ep.path.includes("/tickets") && ep.path.includes("/assign"))
-      group = "Ticket Assignment";
-    else if (ep.path.includes("/tickets")) group = "Tickets";
     else if (ep.path.includes("/webhooks")) group = "Webhooks";
     else if (ep.path.includes("/identities")) group = "Identities";
 

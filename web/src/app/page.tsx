@@ -9,7 +9,6 @@ import {
   Network,
   FileText,
   Table2,
-  CircleDot,
   Webhook,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
@@ -95,10 +94,10 @@ function LandingPage() {
               </h1>
 
               <p className="animate-fade-up delay-2 text-lg text-muted-foreground leading-relaxed max-w-lg">
-                Documents, spreadsheets, tickets, and a wiki — all end-to-end
-                encrypted, all through a REST API. Agents build persistent
-                memory as linked pages. Humans read and edit the same content
-                in the browser.
+                JSON documents and spreadsheets for agents — all end-to-end
+                encrypted, all through a REST API. Model tickets and any other
+                workflow as JSON conventions inside the same document system.
+                Humans read and edit the same content in the browser.
               </p>
 
               <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
@@ -138,8 +137,6 @@ const res = await fetch("/api/documents", {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
-    type: "doc",
-    encryptedTitle: await encrypt("Architecture Overview", key),
     algorithm: "AES-GCM-256",
     accessGrant,
   })
@@ -151,22 +148,32 @@ await fetch(\`/api/documents/\${document.id}/edits\`, {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
-    encryptedContent: await encrypt(markdown, key),
+    encryptedContent: await encrypt(JSON.stringify({
+      kind: "doc",
+      title: "Architecture Overview",
+      content: markdown
+    }), key),
     sequenceNumber: 0,
-    signature: await sign(markdown, identity),
+    signature: await sign("...", identity),
     algorithm: "AES-GCM-256",
   })
 });
 
-// Tickets: create an encrypted task
-await fetch("/api/tickets", {
+// Ticket convention: same docs API, different JSON shape
+await fetch("/api/documents/" + document.id + "/edits", {
   method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
-    encryptedTitle: await encrypt("Fix auth timeout", key),
-    encryptedBody: await encrypt(details, key),
-    status: "open", priority: "high",
-    accessGrant,
+    encryptedContent: await encrypt(JSON.stringify({
+      kind: "ticket",
+      title: "Fix auth timeout",
+      status: "open",
+      priority: "high",
+      content: details
+    }), key),
+    sequenceNumber: 1,
+    signature: await sign("...", identity),
+    algorithm: "AES-GCM-256",
   })
 });`}
             />
@@ -300,9 +307,9 @@ await fetch("/api/tickets", {
                 delay={2}
               />
               <Feature
-                icon={CircleDot}
-                title="Tickets"
-                description="Track tasks, bugs, and decisions with encrypted tickets. Status, priority, assignments, and threaded comments — all through the same signed API."
+                icon={FileText}
+                title="JSON conventions"
+                description="Treat everything as encrypted JSON documents. Tickets, specs, plans, and logs are all conventions in the same storage model."
                 inView={wikiInView}
                 delay={3}
               />
@@ -317,14 +324,14 @@ await fetch("/api/tickets", {
               <Feature
                 icon={Network}
                 title="Linked knowledge graph"
-                description="Reference other documents and tickets by ID from inside encrypted content. Build interconnected documentation that survives renames and refactors."
+                description="Reference other documents by ID from inside encrypted content. Build interconnected documentation that survives renames and refactors."
                 inView={featuresInView}
                 delay={0}
               />
               <Feature
                 icon={Webhook}
                 title="Webhook events"
-                description="Subscribe to document edits, ticket updates, comments, shares, and assignments. HMAC-signed payloads keep your integrations in sync."
+                description="Subscribe to document edits and sharing events. HMAC-signed payloads keep your integrations in sync."
                 inView={featuresInView}
                 delay={1}
               />
@@ -398,15 +405,15 @@ await fetch("/api/tickets", {
               />
               <Step
                 number="02"
-                title="Create docs, sheets, or tickets"
-                description="POST encrypted content through the REST API. Every document gets a stable ID the agent keeps for future edits and links."
+                title="Create encrypted documents"
+                description="POST encrypted JSON snapshots through the REST API. Every document gets a stable ID the agent keeps for future edits and links."
                 inView={stepsInView}
                 delay={2}
               />
               <Step
                 number="03"
                 title="Link and cross-reference"
-                description="Embed document IDs inside encrypted content to cross-reference pages, tickets, and decisions. Links keep working across renames."
+                description="Embed document IDs inside encrypted content to cross-reference pages and decisions. Links keep working across renames."
                 inView={stepsInView}
                 delay={3}
               />
@@ -442,7 +449,7 @@ await fetch("/api/tickets", {
                 }`}
               >
                 Every agent run adds to the knowledge base. Research notes
-                link to decision docs. Tickets reference architecture pages.
+                link to decision docs. JSON ticket docs reference architecture pages.
                 The graph grows denser and more useful with every task —
                 and it&apos;s always one API call away from any agent, on any
                 platform, in any cloud.
@@ -469,7 +476,7 @@ await fetch("/api/tickets", {
                   Week 2
                 </span>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Dozens of linked pages. Tickets track open questions.
+                  Dozens of linked pages. JSON ticket docs track open questions.
                   A spreadsheet aggregates metrics. Agents cross-reference
                   each other&apos;s work.
                 </p>
@@ -524,8 +531,8 @@ await fetch("/api/tickets", {
               Give your agents a workspace
             </h2>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Docs, spreadsheets, tickets, and a wiki — encrypted and
-              API-first. Open source. Free forever.
+              JSON docs and spreadsheets — encrypted and API-first. Open
+              source. Free forever.
             </p>
             <SignInButton size="lg" />
           </div>
@@ -562,7 +569,7 @@ function HeroIllustration() {
           strokeOpacity="0.1"
           strokeWidth="1"
         />
-        {/* Doc → Ticket */}
+        {/* Doc → Convention doc */}
         <line
           x1="240" y1="230" x2="280" y2="145"
           className="hero-dash-line"
@@ -646,14 +653,14 @@ function HeroIllustration() {
         </div>
       </div>
 
-      {/* Ticket — bottom left */}
+      {/* Convention doc — bottom left */}
       <div
         className="hero-card hero-float-4 absolute left-[50px] top-[250px] w-[140px] p-3 z-10"
       >
         <div className="flex items-center gap-1.5 mb-2">
-          <CircleDot className="h-3 w-3 text-foreground/50" />
+          <FileText className="h-3 w-3 text-foreground/50" />
           <span className="text-[9px] font-mono font-medium text-foreground/70 uppercase tracking-wider">
-            Ticket
+            JSON Doc
           </span>
         </div>
         <div className="h-2 w-16 rounded-full bg-foreground/15 mb-2" />
@@ -733,5 +740,3 @@ function Step({
     </div>
   );
 }
-
-

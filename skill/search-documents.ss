@@ -1,6 +1,6 @@
 // search-documents.ss
-// Returns every accessible document with its decrypted title and latest
-// content. The agent filters the results locally against any query.
+// Returns every accessible document with its decrypted latest JSON snapshot.
+// The agent filters the results locally against any query.
 //
 // This is an intentional boundary: safescript handles the privacy-sensitive
 // crypto (decrypting titles and content), while the final substring match
@@ -77,8 +77,6 @@ signedGet = (
 // safescript has no closures — map callbacks must be unary.
 decryptOne = (doc: {
   id: string,
-  encryptedTitle: string,
-  encryptedTitleIv: string,
   accessGrants: {
     encryptedSymmetricKey: string,
     iv: string,
@@ -87,6 +85,7 @@ decryptOne = (doc: {
   }[]
 }): {
   documentId: string,
+  kind: string,
   title: string,
   content: string,
   documentKey: string
@@ -105,11 +104,6 @@ decryptOne = (doc: {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  title = aesDecrypt({
-    ciphertext: doc.encryptedTitle,
-    iv: doc.encryptedTitleIv,
-    key: docKey.plaintext
-  })
   editsPath = stringConcat({ parts: ["/api/documents/", doc.id, "/edits"] })
   editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
   editsParsed = jsonParse(editsRes.body)
@@ -120,10 +114,13 @@ decryptOne = (doc: {
     iv: last.encryptedContentIv,
     key: docKey.plaintext
   })
+  snapshot = jsonParse(content.plaintext)
+  data = snapshot.value
   return {
     documentId: doc.id,
-    title: title.plaintext,
-    content: content.plaintext,
+    kind: data.kind,
+    title: data.title,
+    content: data.content,
     documentKey: docKey.plaintext
   }
 }
@@ -131,6 +128,7 @@ decryptOne = (doc: {
 searchDocuments = (): {
   documents: {
     documentId: string,
+    kind: string,
     title: string,
     content: string,
     documentKey: string

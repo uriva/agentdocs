@@ -1,10 +1,10 @@
 // add-edit.ss
-// Appends a new encrypted content edit to an existing document.
+// Appends a new encrypted JSON snapshot edit to an existing document.
 //
 // Needs the document's AES key (returned from create-document.ss or
 // recovered via unwrap-grant logic). Fetches the current edit history
-// to pick the next sequenceNumber, encrypts the new content, signs it,
-// and POSTs to /api/documents/:id/edits.
+// to pick the next sequenceNumber, encrypts the new snapshot JSON,
+// signs it, and POSTs to /api/documents/:id/edits.
 //
 // Secrets required:
 //   agentdocs-identity
@@ -95,7 +95,7 @@ signedPost = (
 addEdit = (
   documentId: string,
   documentKey: string,
-  newContent: string
+  newSnapshotJson: string
 ): { status: number, body: string, sequenceNumber: number } => {
   identity = loadIdentity()
 
@@ -105,9 +105,9 @@ addEdit = (
   historyParsed = jsonParse(historyRes.body)
   nextSeq = historyParsed.value.edits.length
 
-  // Encrypt + sign the new content, then append.
-  enc = aesEncrypt({ plaintext: newContent, key: documentKey })
-  sig = ed25519Sign({ data: newContent, privateKey: identity.signingPrivateKey })
+  // Encrypt + sign the new snapshot, then append.
+  enc = aesEncrypt({ plaintext: newSnapshotJson, key: documentKey })
+  sig = ed25519Sign({ data: newSnapshotJson, privateKey: identity.signingPrivateKey })
   editBody = jsonStringify({
     encryptedContent: enc.ciphertext,
     encryptedContentIv: enc.iv,

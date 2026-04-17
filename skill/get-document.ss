@@ -1,7 +1,6 @@
 // get-document.ss
-// Fetches a single document by id, decrypts its title, and decrypts the
-// latest edit's content. Returns { documentId, title, content, documentKey,
-// sequenceNumber }.
+// Fetches a single document by id and decrypts the latest JSON snapshot.
+// Returns { documentId, kind, title, content, documentKey, sequenceNumber }.
 //
 // Secrets required:
 //   agentdocs-identity
@@ -68,6 +67,7 @@ signedGet = (
 
 getDocument = (documentId: string): {
   documentId: string,
+  kind: string,
   title: string,
   content: string,
   documentKey: string,
@@ -95,13 +95,7 @@ getDocument = (documentId: string): {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  title = aesDecrypt({
-    ciphertext: doc.encryptedTitle,
-    iv: doc.encryptedTitleIv,
-    key: docKey.plaintext
-  })
-
-  // Fetch + decrypt the latest content edit.
+  // Fetch + decrypt the latest snapshot edit.
   editsPath = stringConcat({ parts: ["/api/documents/", documentId, "/edits"] })
   editsRes = signedGet(editsPath.result, identity.id, identity.signingPrivateKey)
   editsParsed = jsonParse(editsRes.body)
@@ -112,11 +106,14 @@ getDocument = (documentId: string): {
     iv: last.encryptedContentIv,
     key: docKey.plaintext
   })
+  snapshot = jsonParse(content.plaintext)
+  data = snapshot.value
 
   return {
     documentId: documentId,
-    title: title.plaintext,
-    content: content.plaintext,
+    kind: data.kind,
+    title: data.title,
+    content: data.content,
     documentKey: docKey.plaintext,
     sequenceNumber: last.sequenceNumber
   }

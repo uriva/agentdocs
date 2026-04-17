@@ -96,9 +96,6 @@ export const GetIdentityResponse = z.object({
 export const ListDocumentsResponse = z.object({
   documents: z.array(z.object({
     id: z.string(),
-    type: z.enum(["doc", "spreadsheet"]),
-    encryptedTitle: encrypted,
-    encryptedTitleIv: iv,
     algorithm,
     createdAt: z.string().optional(),
   })).describe("Documents the identity has access to"),
@@ -107,9 +104,6 @@ export const ListDocumentsResponse = z.object({
 export const GetDocumentResponse = z.object({
   document: z.object({
     id: z.string(),
-    type: z.enum(["doc", "spreadsheet"]),
-    encryptedTitle: encrypted,
-    encryptedTitleIv: iv,
     algorithm,
     createdAt: z.string().optional(),
     accessGrants: z.array(z.unknown()).describe(
@@ -119,9 +113,6 @@ export const GetDocumentResponse = z.object({
 }).describe("Single document with the caller's access grants");
 
 export const CreateDocumentRequest = z.object({
-  type: z.enum(["doc", "spreadsheet"]).describe("Document type"),
-  encryptedTitle: encrypted.describe("Encrypted document title"),
-  encryptedTitleIv: iv.describe("IV for the encrypted title"),
   algorithm,
   accessGrant: AccessGrantInput.describe("Access grant for the creator"),
 }).describe("Create a new encrypted document");
@@ -140,9 +131,6 @@ export const ListEditsResponse = z.object({
     signature,
     sequenceNumber: z.number(),
     algorithm,
-    editType: z.enum(["content", "title"]).default("content").describe(
-      "Type of edit: 'content' for body changes, 'title' for renames",
-    ),
     authorIdentityId: z.string(),
     createdAt: z.string().optional(),
   })).describe("Ordered list of document edits"),
@@ -160,9 +148,6 @@ export const CreateEditRequest = z.object({
     "Monotonically increasing edit sequence number",
   ),
   algorithm,
-  editType: z.enum(["content", "title"]).default("content").describe(
-    "Type of edit: 'content' for body changes, 'title' for renames",
-  ),
 }).describe("Add a new edit to a document");
 
 export const CreateEditResponse = z.object({
@@ -181,151 +166,27 @@ export const ShareDocumentResponse = z.object({
   }),
 }).describe("Newly created access grant");
 
-// --- Rename / Update Document Title ---
-
-export const UpdateDocumentTitleRequest = z.object({
-  encryptedTitle: encrypted.describe("Encrypted new document title"),
-  encryptedTitleIv: iv.describe("IV for the encrypted title"),
-  algorithm,
-}).describe("Update the encrypted title of an existing document");
-
-export const UpdateDocumentTitleResponse = z.object({
-  ok: z.literal(true),
-}).describe("Title updated successfully");
-
-// --- Tickets ---
-
-const TicketStatus = z.enum(["open", "in_progress", "closed"]).describe(
-  "Ticket status",
-);
-const TicketPriority = z.enum(["low", "medium", "high", "urgent"]).describe(
-  "Ticket priority",
-);
-
-export const ListTicketsResponse = z.object({
-  tickets: z.array(z.object({
-    id: z.string(),
-    encryptedTitle: encrypted,
-    encryptedTitleIv: iv,
-    encryptedBody: encrypted,
-    encryptedBodyIv: iv,
-    status: TicketStatus,
-    priority: TicketPriority,
-    algorithm,
-    createdAt: z.string().optional(),
-  })).describe("Tickets the identity has access to"),
-}).describe("List of accessible tickets");
-
-export const CreateTicketRequest = z.object({
-  encryptedTitle: encrypted.describe("Encrypted ticket title"),
-  encryptedTitleIv: iv.describe("IV for the encrypted title"),
-  encryptedBody: encrypted.describe("Encrypted ticket body (markdown)"),
-  encryptedBodyIv: iv.describe("IV for the encrypted body"),
-  status: TicketStatus.optional().default("open"),
-  priority: TicketPriority.optional().default("medium"),
-  algorithm,
-  accessGrant: AccessGrantInput.describe("Access grant for the creator"),
-}).describe("Create a new encrypted ticket");
-
-export const CreateTicketResponse = z.object({
-  ticket: z.object({
-    id: z.string().describe("Newly created ticket ID"),
-  }),
-}).describe("Newly created ticket");
-
-export const UpdateTicketMetadataRequest = z.object({
-  status: TicketStatus.optional(),
-  priority: TicketPriority.optional(),
-  encryptedTitle: encrypted.optional().describe("Re-encrypted ticket title"),
-  encryptedTitleIv: iv.optional().describe("New IV for the encrypted title"),
-  algorithm: algorithm.optional(),
-}).refine(
-  (d: { status?: string; priority?: string; encryptedTitle?: string }) =>
-    d.status || d.priority || d.encryptedTitle,
-  {
-    message:
-      "At least one of status, priority, or encryptedTitle must be provided",
-  },
-).describe(
-  "Update ticket metadata: status, priority, and/or rename the encrypted title",
-);
-
-export const UpdateTicketContentRequest = z.object({
-  encryptedTitle: encrypted.describe("Re-encrypted ticket title"),
-  encryptedTitleIv: iv.describe("New IV for the encrypted title"),
-  encryptedBody: encrypted.describe("Re-encrypted ticket body"),
-  encryptedBodyIv: iv.describe("New IV for the encrypted body"),
-  algorithm,
-}).describe("Replace ticket encrypted content (title + body)");
-
 export const OkResponse = z.object({
   ok: z.literal(true),
 }).describe("Success response");
-
-export const ListCommentsResponse = z.object({
-  comments: z.array(z.object({
-    id: z.string(),
-    encryptedContent: encrypted,
-    encryptedContentIv: iv,
-    signature,
-    algorithm,
-    authorIdentityId: z.string(),
-    createdAt: z.string().optional(),
-  })).describe("Ordered list of ticket comments"),
-}).describe("Comments for a ticket");
-
-export const CreateCommentRequest = z.object({
-  encryptedContent: encrypted.describe("Encrypted comment content"),
-  encryptedContentIv: iv.describe("IV for the encrypted content"),
-  signature: signature.describe(
-    "Author's Ed25519 signature over the plaintext content",
-  ),
-  algorithm,
-}).describe("Add a comment to a ticket");
-
-export const CreateCommentResponse = z.object({
-  comment: z.object({
-    id: z.string().describe("Newly created comment ID"),
-  }),
-}).describe("Newly created comment");
-
-export const ShareTicketRequest = ShareInput.describe(
-  "Grant another identity access to this ticket",
-);
-
-export const ShareTicketResponse = z.object({
-  accessGrant: z.object({
-    id: z.string().describe("Access grant ID"),
-  }),
-}).describe("Newly created access grant");
-
-export const AssignTicketRequest = z.object({
-  assigneeIdentityId: z.string().describe(
-    "Identity ID to assign the ticket to",
-  ),
-}).describe("Assign a ticket to an identity");
 
 // --- Webhooks ---
 
 const WebhookEventType = z.enum([
   "document.edited",
   "document.shared",
-  "ticket.updated",
-  "ticket.commented",
-  "ticket.shared",
-  "ticket.assigned",
 ]).describe("Event type to subscribe to");
 
-const ResourceType = z.enum(["document", "ticket"]).describe("Resource type");
+const ResourceType = z.enum(["document"]).describe("Resource type");
 
 export const CreateWebhookRequest = z.object({
   url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
   resourceType: ResourceType,
-  resourceId: z.string().describe("ID of the document or ticket to watch"),
+  resourceId: z.string().describe("ID of the document to watch"),
   events: z.array(WebhookEventType).min(1).describe(
     "Event types to subscribe to",
   ),
-}).describe("Subscribe to real-time events for a document or ticket");
+}).describe("Subscribe to real-time events for a document");
 
 export const CreateWebhookResponse = z.object({
   webhook: z.object({
@@ -359,11 +220,11 @@ export const DeleteWebhookResponse = z.object({
 export const WebhookPayloadSchema = z.object({
   event: WebhookEventType,
   resourceType: ResourceType,
-  resourceId: z.string().describe("ID of the affected document or ticket"),
+  resourceId: z.string().describe("ID of the affected document"),
   actorIdentityId: z.string().describe("Identity that triggered the event"),
   timestamp: z.string().describe("ISO 8601 timestamp of the event"),
   data: z.record(z.unknown()).optional().describe(
-    "Optional plaintext metadata (e.g. new ticket status). " +
+    "Optional plaintext metadata. " +
       "Never contains encrypted content — fetch via the API to decrypt.",
   ),
 }).describe(
@@ -428,7 +289,7 @@ export const routes: RouteEntry[] = [
     path: "/api/identities/:id",
     summary: "Get identity public info",
     description: "Retrieve an identity's public keys and display name. " +
-      "Used when sharing a document or ticket with another user.",
+      "Used when sharing a document with another user.",
     auth: true,
     response: GetIdentityResponse,
     successStatus: 200,
@@ -463,8 +324,7 @@ export const routes: RouteEntry[] = [
     path: "/api/documents",
     summary: "Create a document",
     description:
-      "Creates a new encrypted document (type: doc or spreadsheet). " +
-      "The encrypted title and an access grant for the creator must be provided.",
+      "Creates a new encrypted document with an access grant for the creator.",
     auth: true,
     request: CreateDocumentRequest,
     response: CreateDocumentResponse,
@@ -507,114 +367,6 @@ export const routes: RouteEntry[] = [
     successStatus: 201,
     pathParams: [{ name: "id", description: "Document ID" }],
   },
-  {
-    method: "PATCH",
-    path: "/api/documents/:id",
-    summary: "Rename a document",
-    description: "Updates the encrypted title of an existing document. " +
-      "The caller must have access to the document via an access grant.",
-    auth: true,
-    request: UpdateDocumentTitleRequest,
-    response: UpdateDocumentTitleResponse,
-    successStatus: 200,
-    pathParams: [{ name: "id", description: "Document ID" }],
-  },
-
-  // --- Tickets ---
-  {
-    method: "GET",
-    path: "/api/tickets",
-    summary: "List tickets",
-    description:
-      "Returns all tickets the authenticated identity has access to.",
-    auth: true,
-    response: ListTicketsResponse,
-    successStatus: 200,
-  },
-  {
-    method: "POST",
-    path: "/api/tickets",
-    summary: "Create a ticket",
-    description:
-      "Creates a new encrypted ticket with title, body, optional status/priority, " +
-      "and an access grant for the creator.",
-    auth: true,
-    request: CreateTicketRequest,
-    response: CreateTicketResponse,
-    successStatus: 201,
-  },
-  {
-    method: "PATCH",
-    path: "/api/tickets/:id",
-    summary: "Update ticket metadata",
-    description:
-      "Updates a ticket's status and/or priority. These are plaintext fields " +
-      "so no re-encryption is needed.",
-    auth: true,
-    request: UpdateTicketMetadataRequest,
-    response: OkResponse,
-    successStatus: 200,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-  {
-    method: "PUT",
-    path: "/api/tickets/:id",
-    summary: "Update ticket content",
-    description:
-      "Replaces the ticket's encrypted title and body with new ciphertext.",
-    auth: true,
-    request: UpdateTicketContentRequest,
-    response: OkResponse,
-    successStatus: 200,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-  {
-    method: "GET",
-    path: "/api/tickets/:id/comments",
-    summary: "List ticket comments",
-    description: "Returns all comments for a ticket, ordered by creation time.",
-    auth: true,
-    response: ListCommentsResponse,
-    successStatus: 200,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-  {
-    method: "POST",
-    path: "/api/tickets/:id/comments",
-    summary: "Add a ticket comment",
-    description:
-      "Adds an encrypted comment to a ticket. Includes an Ed25519 signature for authenticity.",
-    auth: true,
-    request: CreateCommentRequest,
-    response: CreateCommentResponse,
-    successStatus: 201,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-  {
-    method: "POST",
-    path: "/api/tickets/:id/share",
-    summary: "Share a ticket",
-    description:
-      "Grants another identity access to this ticket by providing them with " +
-      "the ticket's symmetric key encrypted to their public key.",
-    auth: true,
-    request: ShareTicketRequest,
-    response: ShareTicketResponse,
-    successStatus: 201,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-  {
-    method: "PATCH",
-    path: "/api/tickets/:id/assign",
-    summary: "Assign a ticket",
-    description: "Assigns a ticket to another identity.",
-    auth: true,
-    request: AssignTicketRequest,
-    response: OkResponse,
-    successStatus: 200,
-    pathParams: [{ name: "id", description: "Ticket ID" }],
-  },
-
   // --- Webhooks ---
   {
     method: "GET",
@@ -630,8 +382,7 @@ export const routes: RouteEntry[] = [
     method: "POST",
     path: "/api/webhooks",
     summary: "Create a webhook subscription",
-    description:
-      "Subscribe to real-time events for a specific document or ticket. " +
+    description: "Subscribe to real-time events for a specific document. " +
       "When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL " +
       "with event metadata (never encrypted content). " +
       "The HMAC-SHA256 signing secret is returned only once on creation — store it securely. " +

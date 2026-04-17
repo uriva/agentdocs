@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIdentity } from "@/hooks/use-identity";
-import { useDocumentEdits, renameDocument } from "@/hooks/use-documents";
+import { useDocumentEdits } from "@/hooks/use-documents";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,6 @@ import { SpreadsheetEditor } from "@/components/spreadsheet-editor";
 import {
   type SpreadsheetData,
   emptySpreadsheet,
-  serializeSpreadsheet,
   deserializeSpreadsheet,
 } from "@/lib/spreadsheet";
 import { EditHistoryPanel } from "@/components/edit-history-panel";
@@ -32,10 +31,9 @@ import remarkGfm from "remark-gfm";
 interface DocContext {
   title: string;
   docKey: string;
-  type?: string;
+  kind?: string;
 }
 
-/** Doc key is passed via sessionStorage to avoid URL exposure */
 function getDocContext(docId: string): DocContext | null {
   if (typeof window === "undefined") return null;
   const raw = sessionStorage.getItem(`agentdocs:doc:${docId}`);
@@ -56,63 +54,63 @@ export default function DocPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [mode, setMode] = useState<"edit" | "view">("view");
 
-  // Inline title rename state
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
-  const [renamingSaving, setRenamingSaving] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // Text document state — derived from edits until user starts editing
   const [userContent, setUserContent] = useState("");
   const [userEdited, setUserEdited] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Spreadsheet state — same pattern
   const [userSheetData, setUserSheetData] = useState<SpreadsheetData | null>(
     null,
   );
 
-  // Common state
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-
-  const isSpreadsheet = docCtx?.type === "spreadsheet";
 
   useEffect(() => {
     const ctx = getDocContext(docId);
     setDocCtx(ctx);
   }, [docId]);
 
-  const { edits, loading, loaded, addEdit, refresh: refreshEdits } = useDocumentEdits(
+  const { edits, loading, loaded, addEdit } = useDocumentEdits(
     docId,
     docCtx?.docKey ?? null,
     active,
   );
 
-  // Derive initial content from edits (no effect, no race condition)
-  // Filter to content edits only — title edits don't carry body content
-  const contentEdits = useMemo(
-    () => edits.filter((e) => e.editType !== "title"),
-    [edits],
-  );
+  const latest = useMemo(() => {
+    if (!loaded || edits.length === 0) return null;
+    return edits[edits.length - 1];
+  }, [edits, loaded]);
 
+  const docKind = latest?.kind ?? docCtx?.kind ?? "doc";
+  const isSpreadsheet = docKind === "spreadsheet";
+
+  const initialTitle = latest?.title ?? docCtx?.title ?? "Untitled Document";
   const initialContent = useMemo(() => {
-    if (!loaded || contentEdits.length === 0) return "";
-    return contentEdits[contentEdits.length - 1].content;
-  }, [contentEdits, loaded]);
+    if (!latest || isSpreadsheet) return "";
+    return latest.content;
+  }, [latest, isSpreadsheet]);
 
   const initialSheetData = useMemo(() => {
-    if (!loaded || contentEdits.length === 0) return emptySpreadsheet();
-    try {
-      return deserializeSpreadsheet(contentEdits[contentEdits.length - 1].content);
-    } catch {
-      return emptySpreadsheet();
-    }
-  }, [contentEdits, loaded]);
+    if (!isSpreadsheet) return emptySpreadsheet();
+    if (!latest) return emptySpreadsheet();
+    return deserializeSpreadsheet(latest.content);
+  }, [isSpreadsheet, latest]);
 
-  // Resolved values: use user edits if user has touched the editor, otherwise derived from edits
   const content = userEdited ? userContent : initialContent;
   const sheetData = userSheetData ?? initialSheetData;
+
+  useEffect(() => {
+    if (!docCtx) return;
+    if (docCtx.title !== initialTitle || docCtx.kind !== docKind) {
+      const next = { ...docCtx, title: initialTitle, kind: docKind };
+      setDocCtx(next);
+      sessionStorage.setItem(`agentdocs:doc:${docId}`, JSON.stringify(next));
+    }
+  }, [docCtx, initialTitle, docKind, docId]);
 
   const handleContentChange = useCallback((value: string) => {
     setUserContent(value);
@@ -124,24 +122,42 @@ export default function DocPage() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (saving) return;
-    const payload = isSpreadsheet ? serializeSpreadsheet(sheetData) : content;
-    if (!isSpreadsheet && !payload.trim()) return;
+    if (saving || !docCtx) return;
+    const title = (editingTitle ? titleDraft : docCtx.title).trim() ||
+      "Untitled Document";
+    const snapshot =
+      isSpreadsheet
+        ? JSON.stringify({ kind: "spreadsheet", title, data: sheetData })
+        : JSON.stringify({ kind: "doc", title, content });
     setSaving(true);
     try {
-      await addEdit(payload);
+      await addEdit(snapshot);
       setLastSaved(new Date());
-      // After saving, reset userEdited so subsequent fetches can update content
       setUserEdited(false);
       setUserSheetData(null);
+      if (docCtx.title !== title) {
+        const next = { ...docCtx, title };
+        setDocCtx(next);
+        sessionStorage.setItem(`agentdocs:doc:${docId}`, JSON.stringify(next));
+      }
+      if (editingTitle) setEditingTitle(false);
     } catch (err) {
-      console.error("Save failed:", err);
+      toast.error(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
-  }, [content, sheetData, saving, addEdit, isSpreadsheet]);
+  }, [
+    saving,
+    docCtx,
+    editingTitle,
+    titleDraft,
+    isSpreadsheet,
+    sheetData,
+    content,
+    addEdit,
+    docId,
+  ]);
 
-  // Ctrl+S / Cmd+S shortcut
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -183,7 +199,6 @@ export default function DocPage() {
 
   return (
     <div className="grain flex flex-col flex-1">
-      {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
@@ -206,38 +221,16 @@ export default function DocPage() {
                   ref={titleInputRef}
                   value={titleDraft}
                   onChange={(e) => setTitleDraft(e.target.value)}
-                  onKeyDown={async (e) => {
+                  onKeyDown={(e) => {
                     if (e.key === "Escape") {
                       setEditingTitle(false);
-                    } else if (e.key === "Enter") {
+                    }
+                    if (e.key === "Enter") {
                       e.preventDefault();
-                      const trimmed = titleDraft.trim();
-                      if (!trimmed || trimmed === docCtx.title || !active) {
-                        setEditingTitle(false);
-                        return;
-                      }
-                      setRenamingSaving(true);
-                      try {
-                        await renameDocument(docId, trimmed, docCtx.docKey, active);
-                        setDocCtx({ ...docCtx, title: trimmed });
-                        // Update sessionStorage so navigating back and forth keeps the new title
-                        sessionStorage.setItem(
-                          `agentdocs:doc:${docId}`,
-                          JSON.stringify({ ...docCtx, title: trimmed }),
-                        );
-                        // Refresh edits so the title change appears in history
-                        await refreshEdits();
-                        toast.success("Title updated");
-                      } catch {
-                        toast.error("Failed to rename");
-                      } finally {
-                        setRenamingSaving(false);
-                        setEditingTitle(false);
-                      }
+                      setEditingTitle(false);
                     }
                   }}
                   onBlur={() => setEditingTitle(false)}
-                  disabled={renamingSaving}
                   className="text-sm font-medium bg-transparent border-b border-foreground/30 outline-none max-w-[300px] px-0 py-0"
                   autoFocus
                 />
@@ -260,7 +253,6 @@ export default function DocPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Edit / View toggle — only for text documents */}
             {!isSpreadsheet && (
               <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
                 <button
@@ -331,7 +323,6 @@ export default function DocPage() {
         </div>
       </header>
 
-      {/* ── Editor + History ──────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 overflow-auto">
           {loading ? (
@@ -370,7 +361,6 @@ export default function DocPage() {
           )}
         </main>
 
-        {/* ── Edit History Side Panel ─────────────────────────────── */}
         {showHistory && (
           <EditHistoryPanel
             edits={edits}
@@ -380,7 +370,6 @@ export default function DocPage() {
         )}
       </div>
 
-      {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="border-t">
         <div className="mx-auto flex h-8 max-w-6xl items-center justify-between px-6">
           <span className="text-[10px] font-mono text-muted-foreground/40">

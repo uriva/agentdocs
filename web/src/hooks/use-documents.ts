@@ -13,14 +13,13 @@ import {
   decryptAccessGrant,
   sign,
   ALGORITHMS,
-  type EncryptedPayload,
-  type AccessGrant,
 } from "@/lib/crypto";
 import type { StoredIdentity } from "@/lib/identity-store";
+import { emptySpreadsheet, type SpreadsheetData } from "@/lib/spreadsheet";
 
 export interface DocumentHeader {
   id: string;
-  type: string;
+  kind: string;
   title: string;
   createdAt: number;
   /** Decrypted document symmetric key (in memory only) */
@@ -29,9 +28,6 @@ export interface DocumentHeader {
 
 interface RawDocument {
   id: string;
-  type: string;
-  encryptedTitle: string;
-  encryptedTitleIv: string;
   algorithm: string;
   createdAt: number;
   accessGrants: Array<{
@@ -46,11 +42,14 @@ interface RawDocument {
 
 export interface DocumentEdit {
   id: string;
+  raw: string;
+  snapshot: Record<string, unknown> | null;
   content: string;
+  title: string;
+  kind: string;
   sequenceNumber: number;
   createdAt: number;
   authorId: string;
-  editType: "content" | "title";
 }
 
 interface RawEdit {
@@ -60,9 +59,53 @@ interface RawEdit {
   algorithm: string;
   signature: string;
   sequenceNumber: number;
-  editType?: "content" | "title";
   createdAt: number;
   author: Array<{ id: string }>;
+}
+
+type SnapshotLike = {
+  kind?: string;
+  type?: string;
+  title?: string;
+  content?: string;
+  data?: SpreadsheetData;
+};
+
+function parseSnapshot(raw: string): SnapshotLike | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return parsed as SnapshotLike;
+    }
+  } catch {
+    // Keep backward compatibility with legacy plain markdown edits.
+  }
+  return null;
+}
+
+function snapshotKind(snapshot: SnapshotLike | null): string {
+  if (!snapshot) return "doc";
+  if (typeof snapshot.kind === "string") return snapshot.kind;
+  if (typeof snapshot.type === "string") return snapshot.type;
+  return "doc";
+}
+
+function snapshotTitle(snapshot: SnapshotLike | null): string {
+  if (!snapshot) return "Untitled Document";
+  if (typeof snapshot.title === "string" && snapshot.title.trim()) {
+    return snapshot.title;
+  }
+  return "Untitled Document";
+}
+
+function snapshotContent(snapshot: SnapshotLike | null, raw: string): string {
+  if (!snapshot) return raw;
+  const kind = snapshotKind(snapshot);
+  if (kind === "spreadsheet") {
+    return JSON.stringify(snapshot.data ?? emptySpreadsheet());
+  }
+  if (typeof snapshot.content === "string") return snapshot.content;
+  return raw;
 }
 
 // ─── useDocuments: list documents for the active identity ────────────────────
@@ -87,7 +130,7 @@ export function useDocuments(identity: StoredIdentity | null) {
       const decrypted: DocumentHeader[] = [];
       for (const doc of res.documents) {
         // Find the access grant for this identity
-        const grant = doc.accessGrants?.find((g) =>
+        const grant = doc.accessGrants?.find((g: RawDocument["accessGrants"][number]) =>
           // We need to decrypt the doc key using the grantor's public key
           g.grantor?.length > 0,
         );
@@ -105,18 +148,30 @@ export function useDocuments(identity: StoredIdentity | null) {
             grant.grantor[0].encryptionPublicKey,
           );
 
-          const title = await symmetricDecrypt(
-            {
-              ciphertext: doc.encryptedTitle,
-              iv: doc.encryptedTitleIv,
-              algorithm: doc.algorithm,
-            },
-            docKey,
+          const editsRes = await api<{ edits: RawEdit[] }>(
+            `/documents/${doc.id}/edits`,
+            { identity },
           );
+          const latest = editsRes.edits[editsRes.edits.length - 1];
+          let title = "Untitled Document";
+          let kind = "doc";
+          if (latest) {
+            const decryptedLatest = await symmetricDecrypt(
+              {
+                ciphertext: latest.encryptedContent,
+                iv: latest.encryptedContentIv,
+                algorithm: latest.algorithm,
+              },
+              docKey,
+            );
+            const snapshot = parseSnapshot(decryptedLatest);
+            title = snapshotTitle(snapshot);
+            kind = snapshotKind(snapshot);
+          }
 
           decrypted.push({
             id: doc.id,
-            type: doc.type,
+            kind,
             title,
             createdAt: doc.createdAt,
             docKey,
@@ -143,14 +198,14 @@ export function useDocuments(identity: StoredIdentity | null) {
   }, [refresh]);
 
   const createDocument = useCallback(
-    async (title: string, type: "doc" | "spreadsheet" = "doc") => {
+    async (title: string, kind: "doc" | "spreadsheet" = "doc") => {
       if (!identity) throw new Error("No active identity");
 
       // 1. Generate doc symmetric key
       const docKey = await generateDocumentKey();
 
       // 2. Encrypt the title
-      const encTitle = await symmetricEncrypt(title, docKey);
+          const encTitle = await symmetricEncrypt(title, docKey);
 
       // 3. Create access grant for ourselves (self-grant)
       const grant = await cryptoCreateAccessGrant(
@@ -164,9 +219,6 @@ export function useDocuments(identity: StoredIdentity | null) {
         method: "POST",
         identity,
         body: {
-          type,
-          encryptedTitle: encTitle.ciphertext,
-          encryptedTitleIv: encTitle.iv,
           algorithm: encTitle.algorithm,
           accessGrant: {
             encryptedSymmetricKey: grant.encryptedSymmetricKey,
@@ -177,6 +229,30 @@ export function useDocuments(identity: StoredIdentity | null) {
         },
       });
 
+      const initialSnapshot =
+        kind === "spreadsheet"
+          ? JSON.stringify({ kind: "spreadsheet", title, data: emptySpreadsheet() })
+          : JSON.stringify({ kind: "doc", title, content: "" });
+
+      const encrypted = await symmetricEncrypt(initialSnapshot, docKey);
+      const signatureData = new TextEncoder().encode(initialSnapshot);
+      const signature = await sign(
+        signatureData,
+        identity.keyPair.signing.privateKey,
+      );
+
+      await api(`/documents/${res.document.id}/edits`, {
+        method: "POST",
+        identity,
+        body: {
+          encryptedContent: encrypted.ciphertext,
+          encryptedContentIv: encrypted.iv,
+          signature,
+          sequenceNumber: 0,
+          algorithm: encrypted.algorithm,
+        },
+      });
+
       await refresh();
       return res.document.id;
     },
@@ -184,26 +260,6 @@ export function useDocuments(identity: StoredIdentity | null) {
   );
 
   return { documents, loading, error, refresh, createDocument };
-}
-
-// ─── renameDocument: standalone helper (no hook state needed) ────────────────
-
-export async function renameDocument(
-  documentId: string,
-  newTitle: string,
-  docKey: string,
-  identity: StoredIdentity,
-): Promise<void> {
-  const encTitle = await symmetricEncrypt(newTitle, docKey);
-  await api(`/documents/${documentId}`, {
-    method: "PATCH",
-    identity,
-    body: {
-      encryptedTitle: encTitle.ciphertext,
-      encryptedTitleIv: encTitle.iv,
-      algorithm: encTitle.algorithm,
-    },
-  });
 }
 
 // ─── useDocumentEdits: load/add edits for a specific document ────────────────
@@ -242,13 +298,17 @@ export function useDocumentEdits(
             },
             docKey,
           );
+          const snapshot = parseSnapshot(content);
           decrypted.push({
             id: edit.id,
-            content,
+            raw: content,
+            snapshot: snapshot as Record<string, unknown> | null,
+            content: snapshotContent(snapshot, content),
+            title: snapshotTitle(snapshot),
+            kind: snapshotKind(snapshot),
             sequenceNumber: edit.sequenceNumber,
             createdAt: edit.createdAt,
             authorId: edit.author?.[0]?.id || "unknown",
-            editType: edit.editType || "content",
           });
         } catch {
           continue;
@@ -277,7 +337,7 @@ export function useDocumentEdits(
 
       const nextSeq =
         edits.length > 0
-          ? Math.max(...edits.map((e) => e.sequenceNumber)) + 1
+          ? Math.max(...edits.map((e: DocumentEdit) => e.sequenceNumber)) + 1
           : 0;
 
       // Encrypt the content
@@ -299,7 +359,6 @@ export function useDocumentEdits(
           signature,
           sequenceNumber: nextSeq,
           algorithm: encrypted.algorithm,
-          editType: "content",
         },
       });
 

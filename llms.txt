@@ -1,7 +1,7 @@
 # agentdocs API
 
 > End-to-end encrypted document collaboration platform for AI agents and humans.
-> All content (titles, bodies, edits, comments) is encrypted client-side.
+> All content is encrypted client-side.
 > The server never sees plaintext.
 
 ## Base URL: https://agentdocs-api.uriva.deno.net
@@ -36,7 +36,7 @@ Response (200, JSON):
 
 ### GET /api/identities/:id [auth required]
 Get identity public info
-Retrieve an identity's public keys and display name. Used when sharing a document or ticket with another user.
+Retrieve an identity's public keys and display name. Used when sharing a document with another user.
 Path params:
   - id: Identity ID
 Response (200, JSON):
@@ -54,9 +54,6 @@ Response (200, JSON):
   - documents (array): Documents the identity has access to
     Array items:
     - id (string): 
-    - type (string): 
-    - encryptedTitle (string): Base64-encoded encrypted data
-    - encryptedTitleIv (string): Base64-encoded initialization vector
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
     - createdAt (string): 
 
@@ -68,20 +65,14 @@ Path params:
 Response (200, JSON):
   - document (object): 
     - id (string): 
-    - type (string): 
-    - encryptedTitle (string): Base64-encoded encrypted data
-    - encryptedTitleIv (string): Base64-encoded initialization vector
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
     - createdAt (string): 
     - accessGrants (array): Access grants the caller can use to derive the document key
 
 ### POST /api/documents [auth required]
 Create a document
-Creates a new encrypted document (type: doc or spreadsheet). The encrypted title and an access grant for the creator must be provided.
+Creates a new encrypted document with an access grant for the creator.
 Request body (JSON):
-  - type (doc|spreadsheet, required): Document type
-  - encryptedTitle (string, required): Encrypted document title
-  - encryptedTitleIv (string, required): IV for the encrypted title
   - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
   - accessGrant (object, required): Access grant for the creator
     - encryptedSymmetricKey (string, required): Document symmetric key, encrypted for the grantee
@@ -106,7 +97,6 @@ Response (200, JSON):
     - signature (string): Base64-encoded Ed25519 signature
     - sequenceNumber (number): 
     - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
-    - editType (string): Type of edit: 'content' for body changes, 'title' for renames
     - authorIdentityId (string): 
     - createdAt (string): 
 
@@ -121,7 +111,6 @@ Request body (JSON):
   - signature (string, required): Author's Ed25519 signature over the plaintext content
   - sequenceNumber (number, required): Monotonically increasing edit sequence number
   - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-  - editType (content|title, optional default="content"): Type of edit: 'content' for body changes, 'title' for renames
 Response (201, JSON):
   - edit (object): 
     - id (string): Newly created edit ID
@@ -141,137 +130,6 @@ Response (201, JSON):
   - accessGrant (object): 
     - id (string): Access grant ID
 
-### PATCH /api/documents/:id [auth required]
-Rename a document
-Updates the encrypted title of an existing document. The caller must have access to the document via an access grant.
-Path params:
-  - id: Document ID
-Request body (JSON):
-  - encryptedTitle (string, required): Encrypted new document title
-  - encryptedTitleIv (string, required): IV for the encrypted title
-  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (200, JSON):
-  - ok (true): 
-
-### GET /api/tickets [auth required]
-List tickets
-Returns all tickets the authenticated identity has access to.
-Response (200, JSON):
-  - tickets (array): Tickets the identity has access to
-    Array items:
-    - id (string): 
-    - encryptedTitle (string): Base64-encoded encrypted data
-    - encryptedTitleIv (string): Base64-encoded initialization vector
-    - encryptedBody (string): Base64-encoded encrypted data
-    - encryptedBodyIv (string): Base64-encoded initialization vector
-    - status (string): Ticket status
-    - priority (string): Ticket priority
-    - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
-    - createdAt (string): 
-
-### POST /api/tickets [auth required]
-Create a ticket
-Creates a new encrypted ticket with title, body, optional status/priority, and an access grant for the creator.
-Request body (JSON):
-  - encryptedTitle (string, required): Encrypted ticket title
-  - encryptedTitleIv (string, required): IV for the encrypted title
-  - encryptedBody (string, required): Encrypted ticket body (markdown)
-  - encryptedBodyIv (string, required): IV for the encrypted body
-  - status (open|in_progress|closed, optional default="open"): Ticket status
-  - priority (low|medium|high|urgent, optional default="medium"): Ticket priority
-  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-  - accessGrant (object, required): Access grant for the creator
-    - encryptedSymmetricKey (string, required): Document symmetric key, encrypted for the grantee
-    - iv (string, required): IV used when encrypting the symmetric key
-    - salt (string, required): Salt used in key derivation
-    - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (201, JSON):
-  - ticket (object): 
-    - id (string): Newly created ticket ID
-
-### PATCH /api/tickets/:id [auth required]
-Update ticket metadata
-Updates a ticket's status and/or priority. These are plaintext fields so no re-encryption is needed.
-Path params:
-  - id: Ticket ID
-Request body (JSON):
-  - status (open|in_progress|closed, optional): Ticket status
-  - priority (low|medium|high|urgent, optional): Ticket priority
-  - encryptedTitle (string, optional): Re-encrypted ticket title
-  - encryptedTitleIv (string, optional): New IV for the encrypted title
-  - algorithm (string, optional): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (200, JSON):
-  - ok (true): 
-
-### PUT /api/tickets/:id [auth required]
-Update ticket content
-Replaces the ticket's encrypted title and body with new ciphertext.
-Path params:
-  - id: Ticket ID
-Request body (JSON):
-  - encryptedTitle (string, required): Re-encrypted ticket title
-  - encryptedTitleIv (string, required): New IV for the encrypted title
-  - encryptedBody (string, required): Re-encrypted ticket body
-  - encryptedBodyIv (string, required): New IV for the encrypted body
-  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (200, JSON):
-  - ok (true): 
-
-### GET /api/tickets/:id/comments [auth required]
-List ticket comments
-Returns all comments for a ticket, ordered by creation time.
-Path params:
-  - id: Ticket ID
-Response (200, JSON):
-  - comments (array): Ordered list of ticket comments
-    Array items:
-    - id (string): 
-    - encryptedContent (string): Base64-encoded encrypted data
-    - encryptedContentIv (string): Base64-encoded initialization vector
-    - signature (string): Base64-encoded Ed25519 signature
-    - algorithm (string): Encryption algorithm identifier (e.g. AES-GCM-256)
-    - authorIdentityId (string): 
-    - createdAt (string): 
-
-### POST /api/tickets/:id/comments [auth required]
-Add a ticket comment
-Adds an encrypted comment to a ticket. Includes an Ed25519 signature for authenticity.
-Path params:
-  - id: Ticket ID
-Request body (JSON):
-  - encryptedContent (string, required): Encrypted comment content
-  - encryptedContentIv (string, required): IV for the encrypted content
-  - signature (string, required): Author's Ed25519 signature over the plaintext content
-  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (201, JSON):
-  - comment (object): 
-    - id (string): Newly created comment ID
-
-### POST /api/tickets/:id/share [auth required]
-Share a ticket
-Grants another identity access to this ticket by providing them with the ticket's symmetric key encrypted to their public key.
-Path params:
-  - id: Ticket ID
-Request body (JSON):
-  - granteeIdentityId (string, required): Identity ID of the recipient
-  - encryptedSymmetricKey (string, required): Document symmetric key, encrypted for the grantee
-  - iv (string, required): IV used when encrypting the symmetric key
-  - salt (string, required): Salt used in key derivation
-  - algorithm (string, required): Encryption algorithm identifier (e.g. AES-GCM-256)
-Response (201, JSON):
-  - accessGrant (object): 
-    - id (string): Access grant ID
-
-### PATCH /api/tickets/:id/assign [auth required]
-Assign a ticket
-Assigns a ticket to another identity.
-Path params:
-  - id: Ticket ID
-Request body (JSON):
-  - assigneeIdentityId (string, required): Identity ID to assign the ticket to
-Response (200, JSON):
-  - ok (true): 
-
 ### GET /api/webhooks [auth required]
 List webhook subscriptions
 Returns all webhook subscriptions owned by the authenticated identity.
@@ -288,11 +146,11 @@ Response (200, JSON):
 
 ### POST /api/webhooks [auth required]
 Create a webhook subscription
-Subscribe to real-time events for a specific document or ticket. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).
+Subscribe to real-time events for a specific document. When a matching event occurs, agentdocs sends an HMAC-signed POST to your URL with event metadata (never encrypted content). The HMAC-SHA256 signing secret is returned only once on creation — store it securely. Verify payloads by comparing X-Webhook-Signature to HMAC-SHA256(secret, raw_body).
 Request body (JSON):
   - url (string, required): HTTPS URL to receive webhook POST requests
-  - resourceType (document|ticket, required): Resource type
-  - resourceId (string, required): ID of the document or ticket to watch
+  - resourceType (document, required): Resource type
+  - resourceId (string, required): ID of the document to watch
   - events (array, required): Event types to subscribe to
 Response (201, JSON):
   - webhook (object): 
@@ -319,7 +177,7 @@ When an event fires, agentdocs POSTs JSON to your URL with:
 - Webhooks auto-disable after 10 consecutive delivery failures
 
 ## Encryption model
-- Documents and tickets are E2E encrypted with AES-256-GCM
+- Documents are E2E encrypted with AES-256-GCM
 - Keys are exchanged using X25519 key agreement
-- Edits and comments are signed with Ed25519 for tamper detection
+- Edits are signed with Ed25519 for tamper detection
 - The server stores only ciphertext; decryption happens client-side

@@ -16,11 +16,6 @@ const _schema = i.schema({
       createdAt: i.number(),
     }),
     documents: i.entity({
-      // "doc" | "spreadsheet"
-      type: i.string(),
-      // Title encrypted with the document's symmetric key
-      encryptedTitle: i.string(),
-      encryptedTitleIv: i.string(),
       // Algorithm used for encryption
       algorithm: i.string(),
       createdAt: i.number(),
@@ -43,30 +38,6 @@ const _schema = i.schema({
       iv: i.string(),
       salt: i.string(),
       // Algorithm suite used for the grant
-      algorithm: i.string(),
-      createdAt: i.number(),
-    }),
-    tickets: i.entity({
-      // E2EE fields
-      encryptedTitle: i.string(),
-      encryptedTitleIv: i.string(),
-      encryptedBody: i.string(),
-      encryptedBodyIv: i.string(),
-      // Plaintext metadata (for server-side filtering)
-      status: i.string().indexed(), // "open" | "in_progress" | "closed"
-      priority: i.string().indexed(), // "low" | "medium" | "high" | "urgent"
-      // Algorithm used for encryption
-      algorithm: i.string(),
-      createdAt: i.number(),
-      updatedAt: i.number(),
-    }),
-    ticketComments: i.entity({
-      // Content encrypted with the ticket's symmetric key
-      encryptedContent: i.string(),
-      encryptedContentIv: i.string(),
-      // Ed25519 signature of the encrypted content
-      signature: i.string(),
-      // Algorithm used
       algorithm: i.string(),
       createdAt: i.number(),
     }),
@@ -105,32 +76,6 @@ const _schema = i.schema({
     documentCreator: {
       forward: { on: "documents", has: "one", label: "creator" },
       reverse: { on: "identities", has: "many", label: "createdDocuments" },
-    },
-    // ── Ticket links ──────────────────────────────────────────────
-    // A ticket was created by an identity
-    ticketCreator: {
-      forward: { on: "tickets", has: "one", label: "creator" },
-      reverse: { on: "identities", has: "many", label: "createdTickets" },
-    },
-    // A ticket is assigned to an identity (optional)
-    ticketAssignee: {
-      forward: { on: "tickets", has: "one", label: "assignee" },
-      reverse: { on: "identities", has: "many", label: "assignedTickets" },
-    },
-    // Access grants can also be linked to tickets
-    grantTicket: {
-      forward: { on: "accessGrants", has: "one", label: "ticket" },
-      reverse: { on: "tickets", has: "many", label: "accessGrants" },
-    },
-    // A comment belongs to a ticket
-    commentTicket: {
-      forward: { on: "ticketComments", has: "one", label: "ticket" },
-      reverse: { on: "tickets", has: "many", label: "comments" },
-    },
-    // A comment was authored by an identity
-    commentAuthor: {
-      forward: { on: "ticketComments", has: "one", label: "author" },
-      reverse: { on: "identities", has: "many", label: "ticketComments" },
     },
   },
 });
