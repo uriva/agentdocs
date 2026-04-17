@@ -66,7 +66,7 @@ async function transact(steps: unknown[]): Promise<unknown> {
 // ─── Identity Operations ──────────────────────────────────────────────────────
 
 export async function getIdentityPublicKeys(
-  identityId: string
+  identityId: string,
 ): Promise<{ signingPublicKey: string; encryptionPublicKey: string } | null> {
   const result = await query({
     identities: {
@@ -119,7 +119,6 @@ export async function createDocument(params: {
   encryptedTitleIv: string;
   algorithm: string;
   creatorIdentityId: string;
-  slug?: string;
   accessGrant: {
     encryptedSymmetricKey: string;
     iv: string;
@@ -130,18 +129,15 @@ export async function createDocument(params: {
   const docId = crypto.randomUUID();
   const grantId = crypto.randomUUID();
 
-  const docData: Record<string, unknown> = {
-    type: params.type,
-    encryptedTitle: params.encryptedTitle,
-    encryptedTitleIv: params.encryptedTitleIv,
-    algorithm: params.algorithm,
-    createdAt: Date.now(),
-  };
-  if (params.slug) docData.slug = params.slug;
-
   await transact([
     // Create the document
-    ["update", "documents", docId, docData],
+    ["update", "documents", docId, {
+      type: params.type,
+      encryptedTitle: params.encryptedTitle,
+      encryptedTitleIv: params.encryptedTitleIv,
+      algorithm: params.algorithm,
+      createdAt: Date.now(),
+    }],
     // Link document to creator
     ["link", "documents", docId, { creator: params.creatorIdentityId }],
     // Create access grant for the creator
@@ -161,41 +157,8 @@ export async function createDocument(params: {
   return { id: docId };
 }
 
-/** Look up a document by its plaintext slug (scoped to an identity's accessible docs) */
-export async function getDocumentBySlug(
-  slug: string,
-  identityId: string,
-): Promise<Record<string, unknown> | null> {
-  // Query documents matching the slug, then verify the identity has access
-  const result = await query({
-    documents: {
-      $: { where: { slug } },
-      creator: {},
-    },
-  });
-
-  const docs = (result.documents as Array<Record<string, unknown>>) || [];
-  if (docs.length === 0) return null;
-
-  // Check that the requesting identity has an access grant for this document
-  for (const doc of docs) {
-    const docId = doc.id as string;
-    const grantResult = await query({
-      accessGrants: {
-        $: { where: { "grantee.id": identityId, "document.id": docId } },
-      },
-    });
-    const grants = (grantResult.accessGrants as unknown[]) || [];
-    if (grants.length > 0) {
-      return doc;
-    }
-  }
-
-  return null;
-}
-
-/** Update document content by its ID (for upsert-by-slug flow) */
-export async function updateDocumentContent(params: {
+/** Update document title by its ID */
+export async function updateDocumentTitle(params: {
   documentId: string;
   encryptedTitle: string;
   encryptedTitleIv: string;
@@ -241,11 +204,14 @@ export async function addEdit(params: {
 }
 
 export async function getDocumentEdits(
-  documentId: string
+  documentId: string,
 ): Promise<unknown[]> {
   const result = await query({
     edits: {
-      $: { where: { "document.id": documentId }, order: { serverCreatedAt: "asc" } },
+      $: {
+        where: { "document.id": documentId },
+        order: { serverCreatedAt: "asc" },
+      },
       author: {},
     },
   });
@@ -281,7 +247,7 @@ export async function createAccessGrant(params: {
 }
 
 export async function getDocumentsForIdentity(
-  identityId: string
+  identityId: string,
 ): Promise<unknown[]> {
   // Query access grants for this identity, following links to documents and grantors
   const result = await query({
@@ -331,7 +297,7 @@ export async function getDocumentsForIdentity(
 }
 
 export async function getIdentity(
-  identityId: string
+  identityId: string,
 ): Promise<Record<string, unknown> | null> {
   const result = await query({
     identities: {
@@ -466,11 +432,14 @@ export async function addTicketComment(params: {
 }
 
 export async function getTicketComments(
-  ticketId: string
+  ticketId: string,
 ): Promise<unknown[]> {
   const result = await query({
     ticketComments: {
-      $: { where: { "ticket.id": ticketId }, order: { serverCreatedAt: "asc" } },
+      $: {
+        where: { "ticket.id": ticketId },
+        order: { serverCreatedAt: "asc" },
+      },
       author: {},
     },
   });
@@ -479,7 +448,7 @@ export async function getTicketComments(
 }
 
 export async function getTicketsForIdentity(
-  identityId: string
+  identityId: string,
 ): Promise<unknown[]> {
   // Query access grants linked to tickets for this identity
   const result = await query({
@@ -560,7 +529,9 @@ export async function assignTicket(params: {
   assigneeIdentityId: string;
 }): Promise<void> {
   await transact([
-    ["link", "tickets", params.ticketId, { assignee: params.assigneeIdentityId }],
+    ["link", "tickets", params.ticketId, {
+      assignee: params.assigneeIdentityId,
+    }],
     ["update", "tickets", params.ticketId, { updatedAt: Date.now() }],
   ]);
 }
@@ -631,7 +602,9 @@ export async function deleteWebhook(
 export async function getWebhooksForResource(
   resourceType: string,
   resourceId: string,
-): Promise<Array<{ id: string; url: string; secret: string; events: string[] }>> {
+): Promise<
+  Array<{ id: string; url: string; secret: string; events: string[] }>
+> {
   const result = await query({
     webhooks: {
       $: { where: { resourceType, resourceId, active: true } },

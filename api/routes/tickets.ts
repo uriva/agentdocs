@@ -1,21 +1,21 @@
 import { Hono } from "@hono/hono";
 import {
-  createTicket,
-  updateTicketMetadata,
-  updateTicketEncryptedContent,
   addTicketComment,
+  assignTicket,
+  createTicket,
+  createTicketAccessGrant,
   getTicketComments,
   getTicketsForIdentity,
-  createTicketAccessGrant,
-  assignTicket,
+  updateTicketEncryptedContent,
+  updateTicketMetadata,
 } from "../db.ts";
 import {
-  CreateTicketRequest,
-  UpdateTicketMetadataRequest,
-  UpdateTicketContentRequest,
-  CreateCommentRequest,
-  ShareTicketRequest,
   AssignTicketRequest,
+  CreateCommentRequest,
+  CreateTicketRequest,
+  ShareTicketRequest,
+  UpdateTicketContentRequest,
+  UpdateTicketMetadataRequest,
 } from "../schema.ts";
 import type { AppEnv } from "../types.ts";
 import { fireWebhooks } from "./webhooks.ts";
@@ -23,7 +23,9 @@ import { fireWebhooks } from "./webhooks.ts";
 export const ticketsRouter = new Hono<AppEnv>();
 
 /** Parse the request body (prefer rawBody stored by auth middleware) */
-function parseBody(c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } }) {
+function parseBody(
+  c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } },
+) {
   const raw = c.get("rawBody") as string | undefined;
   return raw ? JSON.parse(raw) : c.req.json();
 }
@@ -42,13 +44,21 @@ ticketsRouter.post("/", async (c) => {
   const parsed = CreateTicketRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
   const {
-    encryptedTitle, encryptedTitleIv,
-    encryptedBody, encryptedBodyIv,
-    status, priority, algorithm, accessGrant,
+    encryptedTitle,
+    encryptedTitleIv,
+    encryptedBody,
+    encryptedBodyIv,
+    status,
+    priority,
+    algorithm,
+    accessGrant,
   } = parsed.data;
 
   const ticket = await createTicket({
@@ -73,11 +83,22 @@ ticketsRouter.patch("/:id", async (c) => {
   const parsed = UpdateTicketMetadataRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
-  const { status, priority, encryptedTitle, encryptedTitleIv, algorithm } = parsed.data;
-  await updateTicketMetadata({ ticketId, status, priority, encryptedTitle, encryptedTitleIv, algorithm });
+  const { status, priority, encryptedTitle, encryptedTitleIv, algorithm } =
+    parsed.data;
+  await updateTicketMetadata({
+    ticketId,
+    status,
+    priority,
+    encryptedTitle,
+    encryptedTitleIv,
+    algorithm,
+  });
 
   const identityId = c.get("identityId") as string;
   fireWebhooks("ticket", ticketId, "ticket.updated", identityId, {
@@ -95,11 +116,19 @@ ticketsRouter.put("/:id", async (c) => {
   const parsed = UpdateTicketContentRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
-  const { encryptedTitle, encryptedTitleIv, encryptedBody, encryptedBodyIv, algorithm } =
-    parsed.data;
+  const {
+    encryptedTitle,
+    encryptedTitleIv,
+    encryptedBody,
+    encryptedBodyIv,
+    algorithm,
+  } = parsed.data;
 
   await updateTicketEncryptedContent({
     ticketId,
@@ -124,10 +153,14 @@ ticketsRouter.post("/:id/comments", async (c) => {
   const parsed = CreateCommentRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
-  const { encryptedContent, encryptedContentIv, signature, algorithm } = parsed.data;
+  const { encryptedContent, encryptedContentIv, signature, algorithm } =
+    parsed.data;
 
   const comment = await addTicketComment({
     ticketId,
@@ -158,10 +191,14 @@ ticketsRouter.post("/:id/share", async (c) => {
   const parsed = ShareTicketRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
-  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } = parsed.data;
+  const { granteeIdentityId, encryptedSymmetricKey, iv, salt, algorithm } =
+    parsed.data;
 
   const grant = await createTicketAccessGrant({
     ticketId,
@@ -187,7 +224,10 @@ ticketsRouter.patch("/:id/assign", async (c) => {
   const parsed = AssignTicketRequest.safeParse(raw);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
   const { assigneeIdentityId } = parsed.data;

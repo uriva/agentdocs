@@ -12,78 +12,127 @@ are signed with Ed25519 for tamper detection.
 
 Base URL: `https://agentdocs-api.uriva.deno.net`
 
-## Authentication
+The reference crypto implementation lives in the `@agentdocs/crypto` npm
+package — use it instead of reimplementing the primitives.
 
-Every `/api/*` request must include Ed25519 signature auth via three headers:
+## Identity — how the agent gets one
 
-- `X-Identity-Id`: identity UUID
-- `X-Timestamp`: Unix milliseconds
-- `X-Signature`: base64url Ed25519 signature over `METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`
+Agents do not generate their own identities. An agent uses an identity that was
+created by a human user, who exports it and hands the secret to the agent. This
+keeps key generation inside a trusted browser environment and gives the user a
+clear mental model of what the agent can access.
 
-Where BODY is the raw JSON request body (or empty string for GET).
+### The handoff flow
 
-## Crypto model
+1. **Ask the user to go to https://agentdocs.dev and sign in.**
+2. In the app, the user clicks "Create identity" (or picks an existing one),
+   then "Export." The app shows a long base64url string — the exported identity
+   bundle. It contains the identity's `id`, `name`, and the two private keys
+   (Ed25519 signing + X25519 encryption). The public keys are derivable from
+   the private keys.
+3. **Ask the user to paste that string to you.** Warn them: anyone holding this
+   string can read and modify every document the identity has access to.
+4. **Store it in your secrets manager** under a name like `agentdocs-identity`.
+   Never write it to logs, filesystem, or memory beyond what's needed.
+5. On every run, read the secret, call `importIdentity()` from
+   `@agentdocs/crypto` to expand it into a usable key pair, and use the
+   identity's `id` as the `X-Identity-Id` header for every API call.
 
-1. Each agent has an **identity**: an Ed25519 signing keypair + an X25519 encryption keypair
-2. Each document has an **AES-256-GCM symmetric key** generated at creation time
-3. The document key is encrypted to the creator's X25519 public key via an **access grant** (X25519 key agreement + AES-GCM wrap)
-4. Sharing = encrypting the document key to the recipient's X25519 public key
-5. Every edit/comment is signed with the author's Ed25519 key for tamper detection
+### What the exported bundle looks like
 
-All keys and ciphertext are base64url-encoded strings.
+A base64url-encoded JSON blob with this shape:
 
-## Identity setup
-
-Before using the API, an agent needs a cryptographic identity.
-
-### Generate keys
-
-Generate an Ed25519 signing keypair and an X25519 encryption keypair. Store the
-private keys securely (e.g. in a secrets manager). The identity ID is returned
-by the registration endpoint.
-
-### Register identity
-
-```
-POST /register-identity
-Content-Type: application/json
-
+```json
 {
-  "signingPublicKey": "<base64url Ed25519 public key>",
-  "encryptionPublicKey": "<base64url X25519 public key>",
-  "algorithmSuite": "Ed25519-X25519-AES256GCM",
-  "userId": "<InstantDB user ID>",
-  "name": "My Agent"
+  "id": "<identity UUID from server>",
+  "name": "<display name>",
+  "signing": { "privateKey": "<base64url PKCS8 Ed25519 private key>" },
+  "encryption": { "privateKey": "<base64url PKCS8 X25519 private key>" },
+  "algorithm": {
+    "signing": "Ed25519",
+    "keyExchange": "X25519",
+    "symmetric": "AES-GCM-256"
+  }
 }
 ```
 
-Response: `{ "identity": { "id": "..." } }`
+### If the user has no identity yet
 
-No signature auth required for registration.
+Direct them to https://agentdocs.dev, tell them to sign in with their email,
+click "Create identity", give it a name (e.g. "my-coding-agent"), then export.
+Tell them the export action produces a string they should treat like a
+password — once it's shared, access cannot be revoked without rotating the
+identity entirely.
 
-## Endpoints
+### If the agent needs write access to a user's existing documents
 
-### Documents
+The user must **share** those documents from the web UI to the agent's
+identity, or export an identity that already has access. There is no
+server-side "link these two identities" operation — sharing happens
+per-document via `POST /api/documents/:id/share` (see Sharing below).
 
-**List documents:**
+## Authentication
 
-```
-GET /api/documents
-```
+Every `/api/*` request must carry three headers:
 
-Returns documents the identity has access to. Each has `encryptedTitle`,
-`encryptedTitleIv`, `algorithm`, `slug`, `createdAt`.
+- `X-Identity-Id`: the identity's UUID (from the exported bundle)
+- `X-Timestamp`: current Unix time in milliseconds, as a decimal string
+- `X-Signature`: base64url Ed25519 signature over
+  `METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`
 
-**Create a document:**
+Where `BODY` is the raw JSON request body (or empty string for GET / HEAD).
+Requests with timestamps skewed more than a few minutes are rejected.
+
+`@agentdocs/crypto` provides `signRequest(method, path, timestamp, body,
+signingPrivateKey)` which returns the signature string directly.
+
+## Crypto model
+
+1. Each identity has an Ed25519 signing keypair + an X25519 encryption keypair.
+2. Each document has its own AES-256-GCM symmetric key generated at creation.
+3. The document key is wrapped into an **access grant** — one per recipient —
+   by deriving a shared key from ECDH(my X25519 private key, recipient's X25519
+   public key) and using it to AES-GCM-encrypt the document key.
+4. A self-grant is created when the doc is first created: the grantor and the
+   grantee are both the creator.
+5. Sharing = creating a new access grant that wraps the same document key for
+   another identity's public key. The document ciphertext is not re-encrypted.
+6. Every content edit is signed with the author's Ed25519 key over the
+   plaintext so other members can verify authenticity.
+
+All keys and ciphertext on the wire are base64url strings.
+
+## Documents
+
+Documents are addressed by their server-generated `id`. Agents must keep track
+of IDs they create and the AES keys that decrypt them. There are no slugs,
+wiki paths, or upserts-by-name. Titles can change freely without breaking
+cross-document links.
+
+### Creating a document
+
+High-level steps (each step corresponds to a function in `@agentdocs/crypto`):
+
+1. `generateDocumentKey()` → returns a fresh base64url AES-256-GCM key `K`.
+2. `symmetricEncrypt(titleText, K)` → `{ ciphertext, iv }` for the title.
+3. `createAccessGrant(K, myEncryptionPrivateKey, myEncryptionPublicKey)` →
+   `{ encryptedSymmetricKey, iv, salt, algorithm }`. This is the self-grant.
+4. `signRequest("POST", "/api/documents", timestamp, body, signingPrivateKey)`
+   to build the auth header.
+5. POST to the API:
 
 ```
 POST /api/documents
+X-Identity-Id: <identity.id>
+X-Timestamp: <timestamp>
+X-Signature: <signature>
+Content-Type: application/json
+
 {
   "type": "doc",
   "encryptedTitle": "<ciphertext>",
   "encryptedTitleIv": "<iv>",
   "algorithm": "AES-GCM-256",
-  "slug": "my-page",
   "accessGrant": {
     "encryptedSymmetricKey": "<wrapped doc key>",
     "iv": "<grant iv>",
@@ -93,89 +142,127 @@ POST /api/documents
 }
 ```
 
-Response: `{ "document": { "id": "..." } }`
+Response: `{ "document": { "id": "<docId>" } }`
 
-**Upsert by slug (primary agent endpoint):**
+**Persist the `docId` and the document key `K`**. Without `K`, even you can't
+decrypt the document later. A common pattern is to stash `{ docId: K }` in your
+secrets manager under a single `agentdocs-doc-keys` secret, or to re-derive `K`
+each time from the access grant (see "Recovering a document key" below).
 
-```
-PUT /api/documents/by-slug/:slug
-{
-  "encryptedTitle": "<ciphertext>",
-  "encryptedTitleIv": "<iv>",
-  "algorithm": "AES-GCM-256",
-  "accessGrant": { ... },
-  "encryptedContent": "<ciphertext>",
-  "encryptedContentIv": "<iv>",
-  "signature": "<Ed25519 sig over plaintext>"
-}
-```
+### Adding an edit
 
-Creates if the slug doesn't exist, updates if it does. On create, `accessGrant`
-is required. On update, it is ignored. This is idempotent so agents can call it
-repeatedly without checking existence first.
+An edit is a new encrypted content snapshot appended to the doc's history.
 
-Response: `{ "document": { "id": "..." }, "created": true|false }`
-
-**Get document by slug:**
-
-```
-GET /api/documents/by-slug/:slug
-```
-
-**List edits:**
+1. Recover the document key `K` (either from your own storage, or by calling
+   `decryptAccessGrant` on your own access grant — see below).
+2. `symmetricEncrypt(newContent, K)` → `{ ciphertext, iv }`.
+3. `sign(newContent, signingPrivateKey)` → signature over the plaintext.
+4. Fetch the existing edits to pick the next `sequenceNumber`:
 
 ```
 GET /api/documents/:id/edits
-GET /api/documents/by-slug/:slug/edits
 ```
 
-**Add edit:**
+5. POST the new edit:
 
 ```
 POST /api/documents/:id/edits
-POST /api/documents/by-slug/:slug/edits
 {
   "encryptedContent": "<ciphertext>",
   "encryptedContentIv": "<iv>",
-  "signature": "<Ed25519 sig over plaintext>",
-  "sequenceNumber": 1,
+  "signature": "<base64url Ed25519 signature>",
+  "sequenceNumber": <next seq, starting at 0>,
   "algorithm": "AES-GCM-256"
 }
 ```
 
-**Rename document:**
+### Renaming a document
 
 ```
 PATCH /api/documents/:id
 {
-  "encryptedTitle": "<ciphertext>",
-  "encryptedTitleIv": "<iv>",
+  "encryptedTitle": "<new ciphertext>",
+  "encryptedTitleIv": "<new iv>",
   "algorithm": "AES-GCM-256"
 }
 ```
 
-**Share document:**
+The server also records a title-type edit in the history so the rename is
+auditable.
+
+### Recovering a document key from an access grant
+
+When you list documents (`GET /api/documents`), each one comes back with the
+access grants that apply to your identity. Each grant includes
+`encryptedSymmetricKey`, `iv`, `salt`, and a `grantor` identity ID.
+
+1. `GET /api/identities/:grantorId` to fetch the grantor's `encryptionPublicKey`.
+2. `decryptAccessGrant(grant, myEncryptionPrivateKey, grantorEncryptionPublicKey)`
+   → the document's AES key `K`.
+
+`K` is stable for the life of the document, so you only need to do this once
+per session and cache `{ docId: K }` locally.
+
+### Sharing a document with another identity
+
+1. Ask the user (or the recipient) for the **identity ID** they want you to
+   share with. Users can copy their ID from the web UI.
+2. Fetch the recipient's X25519 public key:
+   ```
+   GET /api/identities/:recipientId
+   ```
+   Response has `encryptionPublicKey`.
+3. Recover your copy of `K` (see above).
+4. `createAccessGrant(K, myEncryptionPrivateKey, recipientEncryptionPublicKey)`
+   → a new grant wrapping `K` for the recipient.
+5. POST the grant:
 
 ```
 POST /api/documents/:id/share
 {
   "granteeIdentityId": "<recipient identity ID>",
-  "encryptedSymmetricKey": "<doc key wrapped for recipient>",
+  "encryptedSymmetricKey": "<wrapped for recipient>",
   "iv": "<iv>",
   "salt": "<salt>",
   "algorithm": "AES-GCM-256"
 }
 ```
 
-### Tickets
+The recipient now sees the document in their list. The document content has
+not been re-encrypted — only the key was wrapped for a new member.
 
-**List tickets:**
+### Listing documents
 
 ```
-GET /api/tickets
+GET /api/documents
 ```
 
-**Create a ticket:**
+Each returned doc includes the encrypted title and the access grants for the
+authenticated identity. Decrypt titles with their document keys to render.
+
+### Search
+
+There is no server-side search — the server cannot read plaintext. Agents
+search client-side:
+
+1. `GET /api/documents` to list all accessible docs.
+2. For each doc, recover `K`, decrypt `encryptedTitle`.
+3. For content-level matching, `GET /api/documents/:id/edits` and decrypt the
+   latest `encryptedContent`.
+4. Run the query over the decrypted titles and content in memory.
+
+This is fine up to the low thousands of documents per identity. For
+cross-document references, embed the target `docId` directly in the encrypted
+content (e.g. `[[<docId>]]` as a client convention) — titles are mutable but
+IDs are stable.
+
+## Tickets
+
+Tickets carry an encrypted title, an encrypted body, plus plaintext `status`
+and `priority` (so the server can filter/sort without decrypting). Ticket
+crypto uses the same access-grant mechanism as documents.
+
+**Create:**
 
 ```
 POST /api/tickets
@@ -187,18 +274,18 @@ POST /api/tickets
   "status": "open",
   "priority": "medium",
   "algorithm": "AES-GCM-256",
-  "accessGrant": { ... }
+  "accessGrant": { ... self-grant, same shape as documents ... }
 }
 ```
 
-**Update ticket metadata (plaintext fields):**
+**Update metadata (status, priority, and/or re-encrypted title):**
 
 ```
 PATCH /api/tickets/:id
 { "status": "in_progress", "priority": "high" }
 ```
 
-**Update ticket content:**
+**Replace encrypted content (title + body):**
 
 ```
 PUT /api/tickets/:id
@@ -211,7 +298,7 @@ PUT /api/tickets/:id
 }
 ```
 
-**Add comment:**
+**Add a signed, encrypted comment:**
 
 ```
 POST /api/tickets/:id/comments
@@ -223,37 +310,18 @@ POST /api/tickets/:id/comments
 }
 ```
 
-**Share ticket:**
+**Share / assign / list:**
 
 ```
-POST /api/tickets/:id/share
-{
-  "granteeIdentityId": "<recipient>",
-  "encryptedSymmetricKey": "<wrapped key>",
-  "iv": "<iv>",
-  "salt": "<salt>",
-  "algorithm": "AES-GCM-256"
-}
+POST /api/tickets/:id/share        # same grant shape as documents
+PATCH /api/tickets/:id/assign      # { "assigneeIdentityId": "..." }
+GET /api/tickets                   # list
+GET /api/tickets/:id/comments      # list comments
 ```
 
-**Assign ticket:**
+## Webhooks
 
-```
-PATCH /api/tickets/:id/assign
-{ "assigneeIdentityId": "<identity ID>" }
-```
-
-**List/get comments:**
-
-```
-GET /api/tickets/:id/comments
-```
-
-### Webhooks
-
-Subscribe to real-time events for documents or tickets.
-
-**Create webhook:**
+Subscribe to real-time events for one document or ticket.
 
 ```
 POST /api/webhooks
@@ -261,64 +329,50 @@ POST /api/webhooks
   "url": "https://my-agent.example.com/hook",
   "resourceType": "document",
   "resourceId": "<doc or ticket ID>",
-  "events": ["edit.created", "document.shared"]
+  "events": ["document.edited", "document.shared"]
 }
 ```
 
-Response includes a `secret` (HMAC-SHA256 signing key, shown only once).
-
-**Verify webhook payloads:** compute `HMAC-SHA256(secret, raw_body)` and compare
-to the `X-Webhook-Signature` header. Reject if `X-Webhook-Timestamp` is older
-than 5 minutes.
-
-**List webhooks:**
+The response includes a `secret` (HMAC-SHA256 signing key). It is returned
+**only once** — store it immediately. Verify payloads by computing
+`HMAC-SHA256(secret, raw_body)` and comparing to the `X-Webhook-Signature`
+header. Reject if `X-Webhook-Timestamp` is older than 5 minutes.
 
 ```
-GET /api/webhooks
-```
-
-**Delete webhook:**
-
-```
-DELETE /api/webhooks/:id
+GET /api/webhooks          # list the identity's subscriptions
+DELETE /api/webhooks/:id   # unsubscribe
 ```
 
 Webhooks auto-disable after 10 consecutive delivery failures.
 
-### Other
-
-**Get identity public info:**
+## Identity lookup
 
 ```
 GET /api/identities/:id
 ```
 
 Returns `signingPublicKey`, `encryptionPublicKey`, `name`, `algorithmSuite`.
+Needed before sharing (to wrap the doc key for the recipient's public key).
 
-**Health check (no auth):**
+## Health
 
 ```
 GET /health
 ```
 
-## Signing a request
-
-To sign any `/api/*` request:
-
-1. Get current Unix milliseconds as a string
-2. Compute SHA-256 of the request body (or empty string for GET)
-3. Build the message: `METHOD\nPATH\nTIMESTAMP\nBODY_HASH`
-4. Sign with your Ed25519 private key
-5. Set headers: `X-Identity-Id`, `X-Timestamp`, `X-Signature` (base64url)
+No auth required. Returns `{ "ok": true }`.
 
 ## Error format
 
-All errors return `{ "error": "description" }` with appropriate HTTP status
-codes (400, 401, 403, 404, 500).
+All errors return `{ "error": "<message>" }` with a 4xx/5xx status code.
 
 ## safescript tool
 
-The `upsert-document.ss` file in this directory is a safescript implementation
-of the upsert-by-slug flow. It handles identity loading, AES key generation,
-encryption, access grant construction, request signing, and the API call in a
-single auditable script. See https://safescript.dev for the safescript language.
+The `create-document.ss` file in this directory is a safescript implementation
+of the full "create document + append first edit" flow. It reads the exported
+identity bundle from secrets, generates the AES key, encrypts the title and
+body, builds the self access grant, signs both requests, and returns the new
+`documentId` plus the `documentKey` so the caller can store the key for
+future edits. It is the current minimal example; a full per-operation bundle
+(edit, share, rename, list, get, search) is planned. See
+https://safescript.dev for the language.

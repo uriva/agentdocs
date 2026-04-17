@@ -243,12 +243,6 @@
 <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
 </tr>
 <tr>
-<td><code>[].slug</code></td>
-<td>string</td>
-<td>optional</td>
-<td>Wiki slug (plaintext) if set</td>
-</tr>
-<tr>
 <td><code>[].createdAt</code></td>
 <td>string</td>
 <td>optional</td>
@@ -288,12 +282,6 @@
 <td>string</td>
 <td><strong>required</strong></td>
 <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-<tr>
-<td><code>slug</code></td>
-<td>string</td>
-<td>optional</td>
-<td>Optional slug for wiki-style addressing (plaintext, unique per identity)</td>
 </tr>
 <tr>
 <td><code>accessGrant</code></td>
@@ -402,6 +390,13 @@
 <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
 </tr>
 <tr>
+<td><code>[].editType</code></td>
+<td><code>content</code> \</td>
+<td><code>title</code></td>
+<td>optional</td>
+<td>Type of edit: 'content' for body changes, 'title' for renames</td>
+</tr>
+<tr>
 <td><code>[].authorIdentityId</code></td>
 <td>string</td>
 <td><strong>required</strong></td>
@@ -456,6 +451,13 @@
 <td>string</td>
 <td><strong>required</strong></td>
 <td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
+</tr>
+<tr>
+<td><code>editType</code></td>
+<td><code>content</code> \</td>
+<td><code>title</code></td>
+<td>optional</td>
+<td>Type of edit: 'content' for body changes, 'title' for renames (default: <code>"content"</code>)</td>
 </tr>
 </tbody></table>
 <p><strong>Response</strong> (<code>201</code>):</p>
@@ -586,307 +588,6 @@
 <td>true</td>
 <td><strong>required</strong></td>
 <td></td>
-</tr>
-</tbody></table>
-<h3><code>GET /api/documents/by-slug/:slug</code> 🔒</h3>
-<p>Resolve a document by its plaintext slug. Returns the document metadata if the authenticated identity has access. Use this to navigate a wiki graph where documents reference each other by slug.</p>
-<p><strong>Path parameters:</strong></p>
-<ul>
-<li><code>slug</code> — Document slug (e.g. 'project-roadmap')</li>
-</ul>
-<p><strong>Response</strong> (<code>200</code>):</p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>document</code></td>
-<td>object</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>document.id</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Document ID</td>
-</tr>
-<tr>
-<td><code>document.type</code></td>
-<td><code>doc</code> \</td>
-<td><code>spreadsheet</code></td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>document.slug</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Document slug</td>
-</tr>
-<tr>
-<td><code>document.encryptedTitle</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Base64-encoded encrypted data</td>
-</tr>
-<tr>
-<td><code>document.encryptedTitleIv</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Base64-encoded initialization vector</td>
-</tr>
-<tr>
-<td><code>document.algorithm</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-<tr>
-<td><code>document.createdAt</code></td>
-<td>string</td>
-<td>optional</td>
-<td></td>
-</tr>
-</tbody></table>
-<h3><code>PUT /api/documents/by-slug/:slug</code> 🔒</h3>
-<p>The primary wiki/agent-memory endpoint. Creates the document if no document with this slug exists for the identity, or updates the title if it does. Optionally appends an encrypted content edit in the same call. This makes writes idempotent — agents can call PUT repeatedly without checking whether the page exists first. On create, accessGrant is required. On update, it is ignored.</p>
-<p><strong>Path parameters:</strong></p>
-<ul>
-<li><code>slug</code> — Document slug (e.g. 'project-roadmap')</li>
-</ul>
-<p><strong>Request body:</strong></p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>encryptedTitle</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encrypted document title</td>
-</tr>
-<tr>
-<td><code>encryptedTitleIv</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>IV for the encrypted title</td>
-</tr>
-<tr>
-<td><code>algorithm</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-<tr>
-<td><code>accessGrant</code></td>
-<td>object</td>
-<td>optional</td>
-<td>Access grant for the creator (required on first create, ignored on update)</td>
-</tr>
-<tr>
-<td><code>accessGrant.encryptedSymmetricKey</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Document symmetric key, encrypted for the grantee</td>
-</tr>
-<tr>
-<td><code>accessGrant.iv</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>IV used when encrypting the symmetric key</td>
-</tr>
-<tr>
-<td><code>accessGrant.salt</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Salt used in key derivation</td>
-</tr>
-<tr>
-<td><code>accessGrant.algorithm</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-<tr>
-<td><code>encryptedContent</code></td>
-<td>string</td>
-<td>optional</td>
-<td>Encrypted document content — if provided, an edit is appended automatically</td>
-</tr>
-<tr>
-<td><code>encryptedContentIv</code></td>
-<td>string</td>
-<td>optional</td>
-<td>IV for the encrypted content</td>
-</tr>
-<tr>
-<td><code>signature</code></td>
-<td>string</td>
-<td>optional</td>
-<td>Ed25519 signature over the plaintext content</td>
-</tr>
-</tbody></table>
-<p><strong>Response</strong> (<code>200</code>):</p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>document</code></td>
-<td>object</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>document.id</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Document ID (stable across upserts)</td>
-</tr>
-<tr>
-<td><code>created</code></td>
-<td>boolean</td>
-<td><strong>required</strong></td>
-<td>True if the document was newly created, false if updated</td>
-</tr>
-</tbody></table>
-<h3><code>GET /api/documents/by-slug/:slug/edits</code> 🔒</h3>
-<p>Returns the full edit history for a slug-addressed document. Equivalent to GET /api/documents/:id/edits but resolved via slug.</p>
-<p><strong>Path parameters:</strong></p>
-<ul>
-<li><code>slug</code> — Document slug</li>
-</ul>
-<p><strong>Response</strong> (<code>200</code>):</p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>edits</code></td>
-<td>array</td>
-<td><strong>required</strong></td>
-<td>Ordered list of document edits</td>
-</tr>
-<tr>
-<td><code>[].id</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>[].encryptedContent</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Base64-encoded encrypted data</td>
-</tr>
-<tr>
-<td><code>[].encryptedContentIv</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Base64-encoded initialization vector</td>
-</tr>
-<tr>
-<td><code>[].signature</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Base64-encoded Ed25519 signature</td>
-</tr>
-<tr>
-<td><code>[].sequenceNumber</code></td>
-<td>number</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>[].algorithm</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-<tr>
-<td><code>[].authorIdentityId</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>[].createdAt</code></td>
-<td>string</td>
-<td>optional</td>
-<td></td>
-</tr>
-</tbody></table>
-<h3><code>POST /api/documents/by-slug/:slug/edits</code> 🔒</h3>
-<p>Append an encrypted content edit to a slug-addressed document. Equivalent to POST /api/documents/:id/edits but resolved via slug.</p>
-<p><strong>Path parameters:</strong></p>
-<ul>
-<li><code>slug</code> — Document slug</li>
-</ul>
-<p><strong>Request body:</strong></p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>encryptedContent</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encrypted edit content (full document snapshot or delta)</td>
-</tr>
-<tr>
-<td><code>encryptedContentIv</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>IV for the encrypted content</td>
-</tr>
-<tr>
-<td><code>signature</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Author's Ed25519 signature over the plaintext content</td>
-</tr>
-<tr>
-<td><code>sequenceNumber</code></td>
-<td>number</td>
-<td><strong>required</strong></td>
-<td>Monotonically increasing edit sequence number</td>
-</tr>
-<tr>
-<td><code>algorithm</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
-</tr>
-</tbody></table>
-<p><strong>Response</strong> (<code>201</code>):</p>
-<table><thead><tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr></thead><tbody>
-<tr>
-<td><code>edit</code></td>
-<td>object</td>
-<td><strong>required</strong></td>
-<td></td>
-</tr>
-<tr>
-<td><code>edit.id</code></td>
-<td>string</td>
-<td><strong>required</strong></td>
-<td>Newly created edit ID</td>
 </tr>
 </tbody></table>
 <h3>Tickets</h3>
@@ -1101,6 +802,24 @@
 <td><code>urgent</code></td>
 <td>optional</td>
 <td>Ticket priority</td>
+</tr>
+<tr>
+<td><code>encryptedTitle</code></td>
+<td>string</td>
+<td>optional</td>
+<td>Re-encrypted ticket title</td>
+</tr>
+<tr>
+<td><code>encryptedTitleIv</code></td>
+<td>string</td>
+<td>optional</td>
+<td>New IV for the encrypted title</td>
+</tr>
+<tr>
+<td><code>algorithm</code></td>
+<td>string</td>
+<td>optional</td>
+<td>Encryption algorithm identifier (e.g. AES-GCM-256)</td>
 </tr>
 </tbody></table>
 <p><strong>Response</strong> (<code>200</code>):</p>

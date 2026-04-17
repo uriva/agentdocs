@@ -9,7 +9,7 @@
  *   README-api.md    — API reference section for the GitHub README
  */
 
-import { routes, getFieldDocs, type RouteEntry } from "./schema.ts";
+import { getFieldDocs, type RouteEntry, routes } from "./schema.ts";
 
 const BASE_URL = "https://agentdocs-api.uriva.deno.net";
 
@@ -25,30 +25,43 @@ type FieldDoc = {
   items?: FieldDoc;
 };
 
-function fieldDocToMarkdownTable(fields: Record<string, FieldDoc>, indent = 0): string {
+function fieldDocToMarkdownTable(
+  fields: Record<string, FieldDoc>,
+  indent = 0,
+): string {
   const rows: string[] = [];
   for (const [name, f] of Object.entries(fields)) {
     const prefix = "  ".repeat(indent);
     const req = f.required ? "**required**" : "optional";
     const type = f.enum ? f.enum.map((e) => `\`${e}\``).join(" \\| ") : f.type;
-    const def = f.default !== undefined ? ` (default: \`${JSON.stringify(f.default)}\`)` : "";
+    const def = f.default !== undefined
+      ? ` (default: \`${JSON.stringify(f.default)}\`)`
+      : "";
     const desc = f.description || "";
     rows.push(`${prefix}| \`${name}\` | ${type} | ${req} | ${desc}${def} |`);
 
     if (f.properties) {
       for (const [subName, subF] of Object.entries(f.properties)) {
         const subReq = subF.required ? "**required**" : "optional";
-        const subType = subF.enum ? subF.enum.map((e) => `\`${e}\``).join(" \\| ") : subF.type;
+        const subType = subF.enum
+          ? subF.enum.map((e) => `\`${e}\``).join(" \\| ")
+          : subF.type;
         const subDesc = subF.description || "";
-        rows.push(`${prefix}| \`${name}.${subName}\` | ${subType} | ${subReq} | ${subDesc} |`);
+        rows.push(
+          `${prefix}| \`${name}.${subName}\` | ${subType} | ${subReq} | ${subDesc} |`,
+        );
       }
     }
     if (f.items?.properties) {
       for (const [subName, subF] of Object.entries(f.items.properties)) {
         const subReq = subF.required ? "**required**" : "optional";
-        const subType = subF.enum ? subF.enum.map((e) => `\`${e}\``).join(" \\| ") : subF.type;
+        const subType = subF.enum
+          ? subF.enum.map((e) => `\`${e}\``).join(" \\| ")
+          : subF.type;
         const subDesc = subF.description || "";
-        rows.push(`${prefix}| \`[].${subName}\` | ${subType} | ${subReq} | ${subDesc} |`);
+        rows.push(
+          `${prefix}| \`[].${subName}\` | ${subType} | ${subReq} | ${subDesc} |`,
+        );
       }
     }
   }
@@ -107,7 +120,9 @@ export function generateReadmeSection(): string {
   sections.push("");
   sections.push("### Authentication");
   sections.push("");
-  sections.push("All `/api/*` endpoints require signature-based authentication via three headers:");
+  sections.push(
+    "All `/api/*` endpoints require signature-based authentication via three headers:",
+  );
   sections.push("");
   sections.push("| Header | Description |");
   sections.push("|--------|-------------|");
@@ -115,7 +130,9 @@ export function generateReadmeSection(): string {
   sections.push("| `X-Timestamp` | Current Unix timestamp in milliseconds |");
   sections.push("| `X-Signature` | Base64url-encoded Ed25519 signature |");
   sections.push("");
-  sections.push("The signature covers: `METHOD\\nPATH\\nTIMESTAMP\\nSHA256(BODY)`");
+  sections.push(
+    "The signature covers: `METHOD\\nPATH\\nTIMESTAMP\\nSHA256(BODY)`",
+  );
   sections.push("");
 
   // Group by category
@@ -148,7 +165,9 @@ export function generateReadmeSection(): string {
   if (webhookRoutes.length) {
     sections.push("### Webhooks");
     sections.push("");
-    sections.push("Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.");
+    sections.push(
+      "Subscribe to real-time events on documents and tickets. Webhook payloads are signed with HMAC-SHA256 — verify using the `X-Webhook-Signature` header.",
+    );
     sections.push("");
     for (const r of webhookRoutes) sections.push(routeToMarkdown(r));
   }
@@ -162,8 +181,12 @@ export function generateLlmsTxt(): string {
   const lines: string[] = [];
   lines.push("# agentdocs API");
   lines.push("");
-  lines.push("> End-to-end encrypted document collaboration platform for AI agents and humans.");
-  lines.push("> All content (titles, bodies, edits, comments) is encrypted client-side.");
+  lines.push(
+    "> End-to-end encrypted document collaboration platform for AI agents and humans.",
+  );
+  lines.push(
+    "> All content (titles, bodies, edits, comments) is encrypted client-side.",
+  );
   lines.push("> The server never sees plaintext.");
   lines.push("");
   lines.push(`## Base URL: ${BASE_URL}`);
@@ -173,7 +196,9 @@ export function generateLlmsTxt(): string {
   lines.push("Routes under /api/* require Ed25519 signature auth via headers:");
   lines.push("- X-Identity-Id: identity UUID");
   lines.push("- X-Timestamp: Unix ms");
-  lines.push("- X-Signature: base64url Ed25519 sig over METHOD\\nPATH\\nTIMESTAMP\\nSHA256(BODY)");
+  lines.push(
+    "- X-Signature: base64url Ed25519 sig over METHOD\\nPATH\\nTIMESTAMP\\nSHA256(BODY)",
+  );
   lines.push("");
   lines.push("## Endpoints");
   lines.push("");
@@ -197,12 +222,18 @@ export function generateLlmsTxt(): string {
       for (const [name, f] of Object.entries(fields)) {
         const req = f.required ? "required" : "optional";
         const type = f.enum ? f.enum.join("|") : f.type;
-        const def = f.default !== undefined ? ` default=${JSON.stringify(f.default)}` : "";
-        lines.push(`  - ${name} (${type}, ${req}${def}): ${f.description || ""}`);
+        const def = f.default !== undefined
+          ? ` default=${JSON.stringify(f.default)}`
+          : "";
+        lines.push(
+          `  - ${name} (${type}, ${req}${def}): ${f.description || ""}`,
+        );
         if (f.properties) {
           for (const [sub, sf] of Object.entries(f.properties)) {
             const sr = sf.required ? "required" : "optional";
-            lines.push(`    - ${sub} (${sf.type}, ${sr}): ${sf.description || ""}`);
+            lines.push(
+              `    - ${sub} (${sf.type}, ${sr}): ${sf.description || ""}`,
+            );
           }
         }
       }
@@ -233,17 +264,29 @@ export function generateLlmsTxt(): string {
   lines.push("");
   lines.push("## Webhook payload format");
   lines.push("When an event fires, agentdocs POSTs JSON to your URL with:");
-  lines.push("- Headers: X-Webhook-Signature (HMAC-SHA256 hex), X-Webhook-Event (event type)");
-  lines.push("- Body: { event, resourceType, resourceId, actorIdentityId, timestamp, data? }");
-  lines.push("- Verify: compute HMAC-SHA256(your_secret, raw_body) and compare to X-Webhook-Signature");
-  lines.push("- Payloads contain only plaintext metadata — fetch encrypted content via the API");
+  lines.push(
+    "- Headers: X-Webhook-Signature (HMAC-SHA256 hex), X-Webhook-Event (event type)",
+  );
+  lines.push(
+    "- Body: { event, resourceType, resourceId, actorIdentityId, timestamp, data? }",
+  );
+  lines.push(
+    "- Verify: compute HMAC-SHA256(your_secret, raw_body) and compare to X-Webhook-Signature",
+  );
+  lines.push(
+    "- Payloads contain only plaintext metadata — fetch encrypted content via the API",
+  );
   lines.push("- Webhooks auto-disable after 10 consecutive delivery failures");
   lines.push("");
   lines.push("## Encryption model");
   lines.push("- Documents and tickets are E2E encrypted with AES-256-GCM");
   lines.push("- Keys are exchanged using X25519 key agreement");
-  lines.push("- Edits and comments are signed with Ed25519 for tamper detection");
-  lines.push("- The server stores only ciphertext; decryption happens client-side");
+  lines.push(
+    "- Edits and comments are signed with Ed25519 for tamper detection",
+  );
+  lines.push(
+    "- The server stores only ciphertext; decryption happens client-side",
+  );
 
   return lines.join("\n");
 }
@@ -323,14 +366,26 @@ function markdownToHtml(md: string): string {
 
     // Headings
     if (line.startsWith("### ")) {
-      if (inTable) { out.push("</tbody></table>"); inTable = false; }
-      if (inList) { out.push("</ul>"); inList = false; }
+      if (inTable) {
+        out.push("</tbody></table>");
+        inTable = false;
+      }
+      if (inList) {
+        out.push("</ul>");
+        inList = false;
+      }
       out.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`);
       continue;
     }
     if (line.startsWith("## ")) {
-      if (inTable) { out.push("</tbody></table>"); inTable = false; }
-      if (inList) { out.push("</ul>"); inList = false; }
+      if (inTable) {
+        out.push("</tbody></table>");
+        inTable = false;
+      }
+      if (inList) {
+        out.push("</ul>");
+        inList = false;
+      }
       out.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
       continue;
     }
@@ -340,18 +395,20 @@ function markdownToHtml(md: string): string {
       // Skip separator rows
       if (line.match(/^\|[\s\-:|]+\|$/)) continue;
 
-      const cells = line.split("|").filter((_c, idx, arr) => idx > 0 && idx < arr.length - 1)
+      const cells = line.split("|").filter((_c, idx, arr) =>
+        idx > 0 && idx < arr.length - 1
+      )
         .map((c) => c.trim());
 
       if (!inTable) {
-        out.push('<table><thead><tr>');
+        out.push("<table><thead><tr>");
         for (const cell of cells) out.push(`<th>${inlineMarkdown(cell)}</th>`);
-        out.push('</tr></thead><tbody>');
+        out.push("</tr></thead><tbody>");
         inTable = true;
       } else {
-        out.push('<tr>');
+        out.push("<tr>");
         for (const cell of cells) out.push(`<td>${inlineMarkdown(cell)}</td>`);
-        out.push('</tr>');
+        out.push("</tr>");
       }
       continue;
     }
@@ -362,7 +419,10 @@ function markdownToHtml(md: string): string {
 
     // List items
     if (line.startsWith("- ")) {
-      if (!inList) { out.push("<ul>"); inList = true; }
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
       out.push(`<li>${inlineMarkdown(line.slice(2))}</li>`);
       continue;
     }
@@ -411,7 +471,8 @@ if (import.meta.main) {
   let readme = decoder.decode(await Deno.readFile(readmePath));
   const markerIdx = readme.indexOf(marker);
   if (markerIdx !== -1) {
-    readme = readme.slice(0, markerIdx + marker.length) + "\n\n" + readmeApi + "\n";
+    readme = readme.slice(0, markerIdx + marker.length) + "\n\n" + readmeApi +
+      "\n";
   }
 
   await Promise.all([

@@ -5,7 +5,10 @@
 
 export function base64urlEncode(bytes: Uint8Array): string {
   const binary = String.fromCharCode(...bytes);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(
+    /=+$/,
+    "",
+  );
 }
 
 export function base64urlDecode(str: string): Uint8Array {
@@ -22,17 +25,17 @@ function decodeToBuffer(str: string): ArrayBuffer {
 
 export async function sign(
   data: Uint8Array,
-  privateKeyBase64url: string
+  privateKeyBase64url: string,
 ): Promise<string> {
   const privateKey = await crypto.subtle.importKey(
     "pkcs8",
     decodeToBuffer(privateKeyBase64url),
     "Ed25519",
     false,
-    ["sign"]
+    ["sign"],
   );
   const signature = new Uint8Array(
-    await crypto.subtle.sign("Ed25519", privateKey, data.buffer as ArrayBuffer)
+    await crypto.subtle.sign("Ed25519", privateKey, data.buffer as ArrayBuffer),
   );
   return base64urlEncode(signature);
 }
@@ -40,20 +43,20 @@ export async function sign(
 export async function verify(
   data: Uint8Array,
   signatureBase64url: string,
-  publicKeyBase64url: string
+  publicKeyBase64url: string,
 ): Promise<boolean> {
   const publicKey = await crypto.subtle.importKey(
     "raw",
     decodeToBuffer(publicKeyBase64url),
     "Ed25519",
     false,
-    ["verify"]
+    ["verify"],
   );
   return crypto.subtle.verify(
     "Ed25519",
     publicKey,
     decodeToBuffer(signatureBase64url),
-    data.buffer as ArrayBuffer
+    data.buffer as ArrayBuffer,
   );
 }
 
@@ -63,7 +66,7 @@ export async function verifyRequest(
   timestamp: number,
   body: string | undefined,
   signature: string,
-  signingPublicKey: string
+  signingPublicKey: string,
 ): Promise<boolean> {
   const now = Date.now();
   if (Math.abs(now - timestamp) > 5 * 60 * 1000) return false;
@@ -71,8 +74,8 @@ export async function verifyRequest(
   const bodyBytes = body ? new TextEncoder().encode(body) : new Uint8Array(0);
   const bodyHash = base64urlEncode(
     new Uint8Array(
-      await crypto.subtle.digest("SHA-256", bodyBytes.buffer as ArrayBuffer)
-    )
+      await crypto.subtle.digest("SHA-256", bodyBytes.buffer as ArrayBuffer),
+    ),
   );
 
   const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;

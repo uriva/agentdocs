@@ -18,18 +18,18 @@ const encrypted = z.string().describe("Base64-encoded encrypted data");
 /** Base64-encoded initialization vector */
 const iv = z.string().describe("Base64-encoded initialization vector");
 /** Encryption algorithm identifier */
-const algorithm = z.string().describe("Encryption algorithm identifier (e.g. AES-GCM-256)");
+const algorithm = z.string().describe(
+  "Encryption algorithm identifier (e.g. AES-GCM-256)",
+);
 /** Base64-encoded Ed25519 signature */
 const signature = z.string().describe("Base64-encoded Ed25519 signature");
-/** URL-safe slug for wiki-style document addressing */
-const slug = z.string()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .describe("URL-safe slug (lowercase alphanumeric + hyphens, e.g. 'project-roadmap')");
 
 // ─── Shared sub-schemas ─────────────────────────────────────────────────────
 
 const AccessGrantInput = z.object({
-  encryptedSymmetricKey: encrypted.describe("Document symmetric key, encrypted for the grantee"),
+  encryptedSymmetricKey: encrypted.describe(
+    "Document symmetric key, encrypted for the grantee",
+  ),
   iv: iv.describe("IV used when encrypting the symmetric key"),
   salt: z.string().describe("Salt used in key derivation"),
   algorithm,
@@ -37,7 +37,9 @@ const AccessGrantInput = z.object({
 
 const ShareInput = z.object({
   granteeIdentityId: z.string().describe("Identity ID of the recipient"),
-  encryptedSymmetricKey: encrypted.describe("Document symmetric key, encrypted for the grantee"),
+  encryptedSymmetricKey: encrypted.describe(
+    "Document symmetric key, encrypted for the grantee",
+  ),
   iv: iv.describe("IV used when encrypting the symmetric key"),
   salt: z.string().describe("Salt used in key derivation"),
   algorithm,
@@ -54,10 +56,16 @@ export const HealthResponse = z.object({
 // --- Register Identity ---
 
 export const RegisterIdentityRequest = z.object({
-  signingPublicKey: z.string().describe("Base64-encoded Ed25519 signing public key"),
-  encryptionPublicKey: z.string().describe("Base64-encoded X25519 encryption public key"),
+  signingPublicKey: z.string().describe(
+    "Base64-encoded Ed25519 signing public key",
+  ),
+  encryptionPublicKey: z.string().describe(
+    "Base64-encoded X25519 encryption public key",
+  ),
   name: z.string().optional().describe("Human-readable display name"),
-  algorithmSuite: z.string().describe("Algorithm suite identifier (e.g. Ed25519-X25519-AES256GCM)"),
+  algorithmSuite: z.string().describe(
+    "Algorithm suite identifier (e.g. Ed25519-X25519-AES256GCM)",
+  ),
   userId: z.string().describe("InstantDB user ID that owns this identity"),
 }).describe("Create a new cryptographic identity");
 
@@ -72,8 +80,12 @@ export const RegisterIdentityResponse = z.object({
 export const GetIdentityResponse = z.object({
   identity: z.object({
     id: z.string().describe("Identity ID"),
-    signingPublicKey: z.string().describe("Base64-encoded Ed25519 signing public key"),
-    encryptionPublicKey: z.string().describe("Base64-encoded X25519 encryption public key"),
+    signingPublicKey: z.string().describe(
+      "Base64-encoded Ed25519 signing public key",
+    ),
+    encryptionPublicKey: z.string().describe(
+      "Base64-encoded X25519 encryption public key",
+    ),
     name: z.string().describe("Display name"),
     algorithmSuite: z.string().describe("Algorithm suite identifier"),
   }),
@@ -88,7 +100,6 @@ export const ListDocumentsResponse = z.object({
     encryptedTitle: encrypted,
     encryptedTitleIv: iv,
     algorithm,
-    slug: z.string().optional().describe("Wiki slug (plaintext) if set"),
     createdAt: z.string().optional(),
   })).describe("Documents the identity has access to"),
 }).describe("List of accessible documents");
@@ -98,7 +109,6 @@ export const CreateDocumentRequest = z.object({
   encryptedTitle: encrypted.describe("Encrypted document title"),
   encryptedTitleIv: iv.describe("IV for the encrypted title"),
   algorithm,
-  slug: slug.optional().describe("Optional slug for wiki-style addressing (plaintext, unique per identity)"),
   accessGrant: AccessGrantInput.describe("Access grant for the creator"),
 }).describe("Create a new encrypted document");
 
@@ -116,19 +126,29 @@ export const ListEditsResponse = z.object({
     signature,
     sequenceNumber: z.number(),
     algorithm,
-    editType: z.enum(["content", "title"]).default("content").describe("Type of edit: 'content' for body changes, 'title' for renames"),
+    editType: z.enum(["content", "title"]).default("content").describe(
+      "Type of edit: 'content' for body changes, 'title' for renames",
+    ),
     authorIdentityId: z.string(),
     createdAt: z.string().optional(),
   })).describe("Ordered list of document edits"),
 }).describe("Edit history for a document");
 
 export const CreateEditRequest = z.object({
-  encryptedContent: encrypted.describe("Encrypted edit content (full document snapshot or delta)"),
+  encryptedContent: encrypted.describe(
+    "Encrypted edit content (full document snapshot or delta)",
+  ),
   encryptedContentIv: iv.describe("IV for the encrypted content"),
-  signature: signature.describe("Author's Ed25519 signature over the plaintext content"),
-  sequenceNumber: z.number().int().min(0).describe("Monotonically increasing edit sequence number"),
+  signature: signature.describe(
+    "Author's Ed25519 signature over the plaintext content",
+  ),
+  sequenceNumber: z.number().int().min(0).describe(
+    "Monotonically increasing edit sequence number",
+  ),
   algorithm,
-  editType: z.enum(["content", "title"]).default("content").describe("Type of edit: 'content' for body changes, 'title' for renames"),
+  editType: z.enum(["content", "title"]).default("content").describe(
+    "Type of edit: 'content' for body changes, 'title' for renames",
+  ),
 }).describe("Add a new edit to a document");
 
 export const CreateEditResponse = z.object({
@@ -138,7 +158,7 @@ export const CreateEditResponse = z.object({
 }).describe("Newly created edit");
 
 export const ShareDocumentRequest = ShareInput.describe(
-  "Grant another identity access to this document"
+  "Grant another identity access to this document",
 );
 
 export const ShareDocumentResponse = z.object({
@@ -159,48 +179,14 @@ export const UpdateDocumentTitleResponse = z.object({
   ok: z.literal(true),
 }).describe("Title updated successfully");
 
-// --- Wiki (slug-addressed documents) ---
-
-export const GetDocumentBySlugResponse = z.object({
-  document: z.object({
-    id: z.string().describe("Document ID"),
-    type: z.enum(["doc", "spreadsheet"]),
-    slug: z.string().describe("Document slug"),
-    encryptedTitle: encrypted,
-    encryptedTitleIv: iv,
-    algorithm,
-    createdAt: z.string().optional(),
-  }),
-}).describe("Document resolved by slug");
-
-export const UpsertDocumentBySlugRequest = z.object({
-  encryptedTitle: encrypted.describe("Encrypted document title"),
-  encryptedTitleIv: iv.describe("IV for the encrypted title"),
-  algorithm,
-  accessGrant: AccessGrantInput.optional().describe(
-    "Access grant for the creator (required on first create, ignored on update)"
-  ),
-  encryptedContent: encrypted.optional().describe(
-    "Encrypted document content — if provided, an edit is appended automatically"
-  ),
-  encryptedContentIv: iv.optional().describe("IV for the encrypted content"),
-  signature: signature.optional().describe("Ed25519 signature over the plaintext content"),
-}).describe(
-  "Upsert a document by slug. Creates the document if it doesn't exist, " +
-  "updates the title if it does. Optionally appends content as an edit in the same call."
-);
-
-export const UpsertDocumentBySlugResponse = z.object({
-  document: z.object({
-    id: z.string().describe("Document ID (stable across upserts)"),
-  }),
-  created: z.boolean().describe("True if the document was newly created, false if updated"),
-}).describe("Upsert result");
-
 // --- Tickets ---
 
-const TicketStatus = z.enum(["open", "in_progress", "closed"]).describe("Ticket status");
-const TicketPriority = z.enum(["low", "medium", "high", "urgent"]).describe("Ticket priority");
+const TicketStatus = z.enum(["open", "in_progress", "closed"]).describe(
+  "Ticket status",
+);
+const TicketPriority = z.enum(["low", "medium", "high", "urgent"]).describe(
+  "Ticket priority",
+);
 
 export const ListTicketsResponse = z.object({
   tickets: z.array(z.object({
@@ -239,9 +225,16 @@ export const UpdateTicketMetadataRequest = z.object({
   encryptedTitle: encrypted.optional().describe("Re-encrypted ticket title"),
   encryptedTitleIv: iv.optional().describe("New IV for the encrypted title"),
   algorithm: algorithm.optional(),
-}).refine((d: { status?: string; priority?: string; encryptedTitle?: string }) => d.status || d.priority || d.encryptedTitle, {
-  message: "At least one of status, priority, or encryptedTitle must be provided",
-}).describe("Update ticket metadata: status, priority, and/or rename the encrypted title");
+}).refine(
+  (d: { status?: string; priority?: string; encryptedTitle?: string }) =>
+    d.status || d.priority || d.encryptedTitle,
+  {
+    message:
+      "At least one of status, priority, or encryptedTitle must be provided",
+  },
+).describe(
+  "Update ticket metadata: status, priority, and/or rename the encrypted title",
+);
 
 export const UpdateTicketContentRequest = z.object({
   encryptedTitle: encrypted.describe("Re-encrypted ticket title"),
@@ -270,7 +263,9 @@ export const ListCommentsResponse = z.object({
 export const CreateCommentRequest = z.object({
   encryptedContent: encrypted.describe("Encrypted comment content"),
   encryptedContentIv: iv.describe("IV for the encrypted content"),
-  signature: signature.describe("Author's Ed25519 signature over the plaintext content"),
+  signature: signature.describe(
+    "Author's Ed25519 signature over the plaintext content",
+  ),
   algorithm,
 }).describe("Add a comment to a ticket");
 
@@ -281,7 +276,7 @@ export const CreateCommentResponse = z.object({
 }).describe("Newly created comment");
 
 export const ShareTicketRequest = ShareInput.describe(
-  "Grant another identity access to this ticket"
+  "Grant another identity access to this ticket",
 );
 
 export const ShareTicketResponse = z.object({
@@ -291,7 +286,9 @@ export const ShareTicketResponse = z.object({
 }).describe("Newly created access grant");
 
 export const AssignTicketRequest = z.object({
-  assigneeIdentityId: z.string().describe("Identity ID to assign the ticket to"),
+  assigneeIdentityId: z.string().describe(
+    "Identity ID to assign the ticket to",
+  ),
 }).describe("Assign a ticket to an identity");
 
 // --- Webhooks ---
@@ -311,7 +308,9 @@ export const CreateWebhookRequest = z.object({
   url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
   resourceType: ResourceType,
   resourceId: z.string().describe("ID of the document or ticket to watch"),
-  events: z.array(WebhookEventType).min(1).describe("Event types to subscribe to"),
+  events: z.array(WebhookEventType).min(1).describe(
+    "Event types to subscribe to",
+  ),
 }).describe("Subscribe to real-time events for a document or ticket");
 
 export const CreateWebhookResponse = z.object({
@@ -319,8 +318,8 @@ export const CreateWebhookResponse = z.object({
     id: z.string().describe("Webhook subscription ID"),
     secret: z.string().describe(
       "HMAC-SHA256 signing secret. Store this securely — it is only returned once. " +
-      "Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing " +
-      "to the X-Webhook-Signature header."
+        "Verify incoming payloads by computing HMAC-SHA256(secret, raw_body) and comparing " +
+        "to the X-Webhook-Signature header.",
     ),
   }),
 }).describe("Newly created webhook subscription");
@@ -332,7 +331,9 @@ export const ListWebhooksResponse = z.object({
     resourceType: ResourceType,
     resourceId: z.string(),
     events: z.array(WebhookEventType),
-    active: z.boolean().describe("Whether the webhook is active (disabled after repeated failures)"),
+    active: z.boolean().describe(
+      "Whether the webhook is active (disabled after repeated failures)",
+    ),
     createdAt: z.string().optional(),
   })).describe("Webhook subscriptions for the authenticated identity"),
 }).describe("List of webhook subscriptions");
@@ -349,11 +350,11 @@ export const WebhookPayloadSchema = z.object({
   timestamp: z.string().describe("ISO 8601 timestamp of the event"),
   data: z.record(z.unknown()).optional().describe(
     "Optional plaintext metadata (e.g. new ticket status). " +
-    "Never contains encrypted content — fetch via the API to decrypt."
+      "Never contains encrypted content — fetch via the API to decrypt.",
   ),
 }).describe(
   "Webhook payload delivered via POST. Verify authenticity using the " +
-  "X-Webhook-Signature header (HMAC-SHA256 of the raw JSON body with your secret)."
+    "X-Webhook-Signature header (HMAC-SHA256 of the raw JSON body with your secret).",
 );
 
 // --- Error ---
@@ -387,7 +388,8 @@ export const routes: RouteEntry[] = [
     method: "GET",
     path: "/health",
     summary: "Health check",
-    description: "Returns `{ ok: true }` if the API is running. No authentication required.",
+    description:
+      "Returns `{ ok: true }` if the API is running. No authentication required.",
     auth: false,
     response: HealthResponse,
     successStatus: 200,
@@ -411,8 +413,7 @@ export const routes: RouteEntry[] = [
     method: "GET",
     path: "/api/identities/:id",
     summary: "Get identity public info",
-    description:
-      "Retrieve an identity's public keys and display name. " +
+    description: "Retrieve an identity's public keys and display name. " +
       "Used when sharing a document or ticket with another user.",
     auth: true,
     response: GetIdentityResponse,
@@ -425,7 +426,8 @@ export const routes: RouteEntry[] = [
     method: "GET",
     path: "/api/documents",
     summary: "List documents",
-    description: "Returns all documents the authenticated identity has access to via access grants.",
+    description:
+      "Returns all documents the authenticated identity has access to via access grants.",
     auth: true,
     response: ListDocumentsResponse,
     successStatus: 200,
@@ -446,7 +448,8 @@ export const routes: RouteEntry[] = [
     method: "GET",
     path: "/api/documents/:id/edits",
     summary: "List document edits",
-    description: "Returns the full edit history for a document, ordered by sequence number.",
+    description:
+      "Returns the full edit history for a document, ordered by sequence number.",
     auth: true,
     response: ListEditsResponse,
     successStatus: 200,
@@ -482,8 +485,7 @@ export const routes: RouteEntry[] = [
     method: "PATCH",
     path: "/api/documents/:id",
     summary: "Rename a document",
-    description:
-      "Updates the encrypted title of an existing document. " +
+    description: "Updates the encrypted title of an existing document. " +
       "The caller must have access to the document via an access grant.",
     auth: true,
     request: UpdateDocumentTitleRequest,
@@ -492,69 +494,13 @@ export const routes: RouteEntry[] = [
     pathParams: [{ name: "id", description: "Document ID" }],
   },
 
-  // --- Wiki (slug-addressed documents) ---
-  {
-    method: "GET",
-    path: "/api/documents/by-slug/:slug",
-    summary: "Get document by slug",
-    description:
-      "Resolve a document by its plaintext slug. Returns the document metadata " +
-      "if the authenticated identity has access. Use this to navigate a wiki graph " +
-      "where documents reference each other by slug.",
-    auth: true,
-    response: GetDocumentBySlugResponse,
-    successStatus: 200,
-    pathParams: [{ name: "slug", description: "Document slug (e.g. 'project-roadmap')" }],
-  },
-  {
-    method: "PUT",
-    path: "/api/documents/by-slug/:slug",
-    summary: "Upsert document by slug",
-    description:
-      "The primary wiki/agent-memory endpoint. Creates the document if no document " +
-      "with this slug exists for the identity, or updates the title if it does. " +
-      "Optionally appends an encrypted content edit in the same call. " +
-      "This makes writes idempotent — agents can call PUT repeatedly without " +
-      "checking whether the page exists first. " +
-      "On create, accessGrant is required. On update, it is ignored.",
-    auth: true,
-    request: UpsertDocumentBySlugRequest,
-    response: UpsertDocumentBySlugResponse,
-    successStatus: 200,
-    pathParams: [{ name: "slug", description: "Document slug (e.g. 'project-roadmap')" }],
-  },
-  {
-    method: "GET",
-    path: "/api/documents/by-slug/:slug/edits",
-    summary: "List edits by slug",
-    description:
-      "Returns the full edit history for a slug-addressed document. " +
-      "Equivalent to GET /api/documents/:id/edits but resolved via slug.",
-    auth: true,
-    response: ListEditsResponse,
-    successStatus: 200,
-    pathParams: [{ name: "slug", description: "Document slug" }],
-  },
-  {
-    method: "POST",
-    path: "/api/documents/by-slug/:slug/edits",
-    summary: "Add edit by slug",
-    description:
-      "Append an encrypted content edit to a slug-addressed document. " +
-      "Equivalent to POST /api/documents/:id/edits but resolved via slug.",
-    auth: true,
-    request: CreateEditRequest,
-    response: CreateEditResponse,
-    successStatus: 201,
-    pathParams: [{ name: "slug", description: "Document slug" }],
-  },
-
   // --- Tickets ---
   {
     method: "GET",
     path: "/api/tickets",
     summary: "List tickets",
-    description: "Returns all tickets the authenticated identity has access to.",
+    description:
+      "Returns all tickets the authenticated identity has access to.",
     auth: true,
     response: ListTicketsResponse,
     successStatus: 200,
@@ -673,7 +619,8 @@ export const routes: RouteEntry[] = [
     method: "DELETE",
     path: "/api/webhooks/:id",
     summary: "Delete a webhook subscription",
-    description: "Permanently removes a webhook subscription. Deliveries in flight may still complete.",
+    description:
+      "Permanently removes a webhook subscription. Deliveries in flight may still complete.",
     auth: true,
     response: DeleteWebhookResponse,
     successStatus: 200,
@@ -716,7 +663,11 @@ function zodFieldToDoc(schema: z.ZodTypeAny): FieldDoc {
   // Unwrap optional/default
   if (schema instanceof z.ZodOptional) {
     const inner = zodFieldToDoc(schema._def.innerType);
-    return { ...inner, required: false, description: desc || inner.description };
+    return {
+      ...inner,
+      required: false,
+      description: desc || inner.description,
+    };
   }
   if (schema instanceof z.ZodDefault) {
     const inner = zodFieldToDoc(schema._def.innerType);
@@ -741,7 +692,11 @@ function zodFieldToDoc(schema: z.ZodTypeAny): FieldDoc {
     return { type: "boolean", description: desc, required: true };
   }
   if (schema instanceof z.ZodLiteral) {
-    return { type: JSON.stringify(schema._def.value), description: desc, required: true };
+    return {
+      type: JSON.stringify(schema._def.value),
+      description: desc,
+      required: true,
+    };
   }
   if (schema instanceof z.ZodEnum) {
     return {
@@ -765,7 +720,12 @@ function zodFieldToDoc(schema: z.ZodTypeAny): FieldDoc {
     for (const [key, value] of Object.entries(shape)) {
       props[key] = zodFieldToDoc(value as z.ZodTypeAny);
     }
-    return { type: "object", description: desc, required: true, properties: props };
+    return {
+      type: "object",
+      description: desc,
+      required: true,
+      properties: props,
+    };
   }
   return { type: "unknown", description: desc, required: true };
 }

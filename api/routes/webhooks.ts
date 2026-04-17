@@ -1,8 +1,8 @@
 import { Hono } from "@hono/hono";
 import {
   createWebhook,
-  getWebhooksForIdentity,
   deleteWebhook,
+  getWebhooksForIdentity,
   getWebhooksForResource,
   recordWebhookFailure,
   recordWebhookSuccess,
@@ -13,7 +13,9 @@ import type { AppEnv } from "../types.ts";
 export const webhooksRouter = new Hono<AppEnv>();
 
 /** Parse the request body (prefer rawBody stored by auth middleware) */
-function parseBody(c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } }) {
+function parseBody(
+  c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } },
+) {
   const raw = c.get("rawBody") as string | undefined;
   return raw ? JSON.parse(raw) : c.req.json();
 }
@@ -118,7 +120,9 @@ webhooksRouter.get("/", async (c) => {
     resourceId: h.resourceId,
     events: typeof h.events === "string" ? JSON.parse(h.events) : h.events,
     active: h.active,
-    createdAt: h.createdAt ? new Date(h.createdAt as number).toISOString() : undefined,
+    createdAt: h.createdAt
+      ? new Date(h.createdAt as number).toISOString()
+      : undefined,
   }));
 
   return c.json({ webhooks });
@@ -132,7 +136,10 @@ webhooksRouter.post("/", async (c) => {
 
   if (!parsed.success) {
     return c.json(
-      { error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") },
+      {
+        error: parsed.error.issues.map((i: { message: string }) => i.message)
+          .join("; "),
+      },
       400,
     );
   }

@@ -84,7 +84,6 @@ Returns all documents the authenticated identity has access to via access grants
 | `[].encryptedTitle` | string | **required** | Base64-encoded encrypted data |
 | `[].encryptedTitleIv` | string | **required** | Base64-encoded initialization vector |
 | `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `[].slug` | string | optional | Wiki slug (plaintext) if set |
 | `[].createdAt` | string | optional |  |
 
 ### `POST /api/documents` 🔒
@@ -99,7 +98,6 @@ Creates a new encrypted document (type: doc or spreadsheet). The encrypted title
 | `encryptedTitle` | string | **required** | Encrypted document title |
 | `encryptedTitleIv` | string | **required** | IV for the encrypted title |
 | `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `slug` | string | optional | Optional slug for wiki-style addressing (plaintext, unique per identity) |
 | `accessGrant` | object | **required** | Access grant for the creator |
 | `accessGrant.encryptedSymmetricKey` | string | **required** | Document symmetric key, encrypted for the grantee |
 | `accessGrant.iv` | string | **required** | IV used when encrypting the symmetric key |
@@ -132,6 +130,7 @@ Returns the full edit history for a document, ordered by sequence number.
 | `[].signature` | string | **required** | Base64-encoded Ed25519 signature |
 | `[].sequenceNumber` | number | **required** |  |
 | `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `[].editType` | `content` \| `title` | optional | Type of edit: 'content' for body changes, 'title' for renames |
 | `[].authorIdentityId` | string | **required** |  |
 | `[].createdAt` | string | optional |  |
 
@@ -152,6 +151,7 @@ Appends a new edit (encrypted content snapshot) to a document's history. Each ed
 | `signature` | string | **required** | Author's Ed25519 signature over the plaintext content |
 | `sequenceNumber` | number | **required** | Monotonically increasing edit sequence number |
 | `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
+| `editType` | `content` \| `title` | optional | Type of edit: 'content' for body changes, 'title' for renames (default: `"content"`) |
 
 **Response** (`201`):
 
@@ -206,106 +206,6 @@ Updates the encrypted title of an existing document. The caller must have access
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `ok` | true | **required** |  |
-
-### `GET /api/documents/by-slug/:slug` 🔒
-
-Resolve a document by its plaintext slug. Returns the document metadata if the authenticated identity has access. Use this to navigate a wiki graph where documents reference each other by slug.
-
-**Path parameters:**
-
-- `slug` — Document slug (e.g. 'project-roadmap')
-
-**Response** (`200`):
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `document` | object | **required** |  |
-| `document.id` | string | **required** | Document ID |
-| `document.type` | `doc` \| `spreadsheet` | **required** |  |
-| `document.slug` | string | **required** | Document slug |
-| `document.encryptedTitle` | string | **required** | Base64-encoded encrypted data |
-| `document.encryptedTitleIv` | string | **required** | Base64-encoded initialization vector |
-| `document.algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `document.createdAt` | string | optional |  |
-
-### `PUT /api/documents/by-slug/:slug` 🔒
-
-The primary wiki/agent-memory endpoint. Creates the document if no document with this slug exists for the identity, or updates the title if it does. Optionally appends an encrypted content edit in the same call. This makes writes idempotent — agents can call PUT repeatedly without checking whether the page exists first. On create, accessGrant is required. On update, it is ignored.
-
-**Path parameters:**
-
-- `slug` — Document slug (e.g. 'project-roadmap')
-
-**Request body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `encryptedTitle` | string | **required** | Encrypted document title |
-| `encryptedTitleIv` | string | **required** | IV for the encrypted title |
-| `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `accessGrant` | object | optional | Access grant for the creator (required on first create, ignored on update) |
-| `accessGrant.encryptedSymmetricKey` | string | **required** | Document symmetric key, encrypted for the grantee |
-| `accessGrant.iv` | string | **required** | IV used when encrypting the symmetric key |
-| `accessGrant.salt` | string | **required** | Salt used in key derivation |
-| `accessGrant.algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `encryptedContent` | string | optional | Encrypted document content — if provided, an edit is appended automatically |
-| `encryptedContentIv` | string | optional | IV for the encrypted content |
-| `signature` | string | optional | Ed25519 signature over the plaintext content |
-
-**Response** (`200`):
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `document` | object | **required** |  |
-| `document.id` | string | **required** | Document ID (stable across upserts) |
-| `created` | boolean | **required** | True if the document was newly created, false if updated |
-
-### `GET /api/documents/by-slug/:slug/edits` 🔒
-
-Returns the full edit history for a slug-addressed document. Equivalent to GET /api/documents/:id/edits but resolved via slug.
-
-**Path parameters:**
-
-- `slug` — Document slug
-
-**Response** (`200`):
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `edits` | array | **required** | Ordered list of document edits |
-| `[].id` | string | **required** |  |
-| `[].encryptedContent` | string | **required** | Base64-encoded encrypted data |
-| `[].encryptedContentIv` | string | **required** | Base64-encoded initialization vector |
-| `[].signature` | string | **required** | Base64-encoded Ed25519 signature |
-| `[].sequenceNumber` | number | **required** |  |
-| `[].algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-| `[].authorIdentityId` | string | **required** |  |
-| `[].createdAt` | string | optional |  |
-
-### `POST /api/documents/by-slug/:slug/edits` 🔒
-
-Append an encrypted content edit to a slug-addressed document. Equivalent to POST /api/documents/:id/edits but resolved via slug.
-
-**Path parameters:**
-
-- `slug` — Document slug
-
-**Request body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `encryptedContent` | string | **required** | Encrypted edit content (full document snapshot or delta) |
-| `encryptedContentIv` | string | **required** | IV for the encrypted content |
-| `signature` | string | **required** | Author's Ed25519 signature over the plaintext content |
-| `sequenceNumber` | number | **required** | Monotonically increasing edit sequence number |
-| `algorithm` | string | **required** | Encryption algorithm identifier (e.g. AES-GCM-256) |
-
-**Response** (`201`):
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `edit` | object | **required** |  |
-| `edit.id` | string | **required** | Newly created edit ID |
 
 ### Tickets
 
@@ -370,6 +270,9 @@ Updates a ticket's status and/or priority. These are plaintext fields so no re-e
 |-------|------|----------|-------------|
 | `status` | `open` \| `in_progress` \| `closed` | optional | Ticket status |
 | `priority` | `low` \| `medium` \| `high` \| `urgent` | optional | Ticket priority |
+| `encryptedTitle` | string | optional | Re-encrypted ticket title |
+| `encryptedTitleIv` | string | optional | New IV for the encrypted title |
+| `algorithm` | string | optional | Encryption algorithm identifier (e.g. AES-GCM-256) |
 
 **Response** (`200`):
 

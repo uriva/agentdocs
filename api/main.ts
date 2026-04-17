@@ -12,21 +12,29 @@ import type { AppEnv } from "./types.ts";
 const app = new Hono<AppEnv>();
 
 // CORS for web app
-app.use("/*", cors({
-  origin: (origin) => {
-    const allowed = [
-      "http://localhost:3000",
-      "https://agentdocs.dev",
-      "https://web-uri1.vercel.app",
-    ];
-    if (allowed.includes(origin)) return origin;
-    // Allow all Vercel preview deployments
-    if (origin.endsWith(".vercel.app")) return origin;
-    return null;
-  },
-  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowHeaders: ["Content-Type", "X-Identity-Id", "X-Timestamp", "X-Signature"],
-}));
+app.use(
+  "/*",
+  cors({
+    origin: (origin) => {
+      const allowed = [
+        "http://localhost:3000",
+        "https://agentdocs.dev",
+        "https://web-uri1.vercel.app",
+      ];
+      if (allowed.includes(origin)) return origin;
+      // Allow all Vercel preview deployments
+      if (origin.endsWith(".vercel.app")) return origin;
+      return null;
+    },
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowHeaders: [
+      "Content-Type",
+      "X-Identity-Id",
+      "X-Timestamp",
+      "X-Signature",
+    ],
+  }),
+);
 
 // Health check
 app.get("/health", (c) => c.json({ ok: true }));
@@ -84,7 +92,7 @@ app.use("/api/*", async (c, next) => {
     timestamp,
     body,
     signature,
-    keys.signingPublicKey
+    keys.signingPublicKey,
   );
 
   if (!valid) {
@@ -114,7 +122,10 @@ app.post("/register-identity", async (c) => {
   const parsed = RegisterIdentityRequest.safeParse(body);
 
   if (!parsed.success) {
-    return c.json({ error: parsed.error.issues.map((i: { message: string }) => i.message).join("; ") }, 400);
+    return c.json({
+      error: parsed.error.issues.map((i: { message: string }) => i.message)
+        .join("; "),
+    }, 400);
   }
 
   try {
@@ -130,7 +141,9 @@ app.post("/register-identity", async (c) => {
     return c.json({ identity });
   } catch (err) {
     console.error("register-identity error:", err);
-    return c.json({ error: err instanceof Error ? err.message : "Failed to create identity" }, 500);
+    return c.json({
+      error: err instanceof Error ? err.message : "Failed to create identity",
+    }, 500);
   }
 });
 

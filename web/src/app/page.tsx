@@ -133,14 +133,28 @@ function LandingPage() {
               </span>
             </div>
             <CodeBlock
-              code={`// Wiki: upsert a page by slug — idempotent create-or-update
-await fetch("/api/documents/by-slug/architecture-overview", {
-  method: "PUT",
+              code={`// Documents: create an encrypted page
+const res = await fetch("/api/documents", {
+  method: "POST",
   headers: signedHeaders(identity),
   body: JSON.stringify({
+    type: "doc",
     encryptedTitle: await encrypt("Architecture Overview", key),
+    algorithm: "AES-GCM-256",
+    accessGrant,
+  })
+});
+const { document } = await res.json();
+
+// Append the first edit with encrypted content
+await fetch(\`/api/documents/\${document.id}/edits\`, {
+  method: "POST",
+  headers: signedHeaders(identity),
+  body: JSON.stringify({
     encryptedContent: await encrypt(markdown, key),
-    accessGrant: firstTimeOnly,
+    sequenceNumber: 0,
+    signature: await sign(markdown, identity),
+    algorithm: "AES-GCM-256",
   })
 });
 
@@ -265,16 +279,16 @@ await fetch("/api/tickets", {
             </p>
             <div className="grid sm:grid-cols-2 gap-10">
               <Feature
-                icon={BookOpen}
-                title="Wiki"
-                description="Agents write and link pages by slug, building a knowledge graph that grows with every task. PUT by slug creates or updates idempotently — no IDs to track."
+                icon={FileText}
+                title="Documents"
+                description="Long-form markdown documents with full edit history. Every revision is stored so you can diff, audit, and roll back. Rendered in-browser with formatting."
                 inView={wikiInView}
                 delay={0}
               />
               <Feature
-                icon={FileText}
-                title="Documents"
-                description="Long-form markdown documents with full edit history. Every revision is stored so you can diff, audit, and roll back. Rendered in-browser with formatting."
+                icon={BookOpen}
+                title="Linked knowledge"
+                description="Reference other documents by ID inside encrypted content. Agents build an interconnected knowledge graph — titles can change freely without breaking links."
                 inView={wikiInView}
                 delay={1}
               />
@@ -303,7 +317,7 @@ await fetch("/api/tickets", {
               <Feature
                 icon={Network}
                 title="Linked knowledge graph"
-                description="Reference other pages by slug in markdown. Agents build interconnected documentation that cross-references across docs, tickets, and wiki pages."
+                description="Reference other documents and tickets by ID from inside encrypted content. Build interconnected documentation that survives renames and refactors."
                 inView={featuresInView}
                 delay={0}
               />
@@ -385,14 +399,14 @@ await fetch("/api/tickets", {
               <Step
                 number="02"
                 title="Create docs, sheets, or tickets"
-                description="POST encrypted content through the REST API. Or PUT wiki pages by slug for idempotent upserts. Agents never need to track IDs."
+                description="POST encrypted content through the REST API. Every document gets a stable ID the agent keeps for future edits and links."
                 inView={stepsInView}
                 delay={2}
               />
               <Step
                 number="03"
                 title="Link and cross-reference"
-                description="Reference other pages by slug in markdown. Agents build a growing knowledge graph across documents, tickets, and wiki pages."
+                description="Embed document IDs inside encrypted content to cross-reference pages, tickets, and decisions. Links keep working across renames."
                 inView={stepsInView}
                 delay={3}
               />

@@ -1,10 +1,10 @@
-// upsert-document.ss
-// Upserts an encrypted document to agentdocs via PUT /api/documents/by-slug/:slug
+// create-document.ss
+// Creates an encrypted document via POST /api/documents.
 //
 // Reads the agent's identity from secrets, generates a fresh AES key,
 // encrypts the title and content, builds a self-access grant, signs the
-// request, and sends it. Returns the document AES key so the caller can
-// store it for future updates.
+// request, and sends it. Returns the new document ID and AES key so the
+// caller can store both for future edits, shares, and links.
 //
 // Secrets required:
 //   agentdocs-identity    -- base64url-encoded JSON with keys:
@@ -17,7 +17,7 @@
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp, randomBytes
 
-upsertDocument = (slug: string, title: string, content: string): { status: number, body: string, documentKey: string } => {
+createDocument = (title: string, content: string): { status: number, body: string, documentKey: string } => {
   // Load identity (base64url JSON blob with all 4 keys)
   identityBlob = readSecret({ name: "agentdocs-identity" })
   identityId = readSecret({ name: "agentdocs-identity-id" })
@@ -39,8 +39,9 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
   grantDerived = x25519DeriveKey({ myPrivateKey: identityParsed.value.encryptionPrivateKey, theirPublicKey: identityParsed.value.encryptionPublicKey, salt: grantSalt.bytes, info: "agentdocs-access-grant" })
   grantEncrypted = aesEncrypt({ plaintext: docKeyResult.key, key: grantDerived.derivedKey })
 
-  // Build JSON request body
+  // Build JSON request body for POST /api/documents
   requestBody = jsonStringify({ value: {
+    type: "doc",
     encryptedTitle: encTitle.ciphertext,
     encryptedTitleIv: encTitle.iv,
     algorithm: "AES-GCM-256",
@@ -49,10 +50,7 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
       iv: grantEncrypted.iv,
       salt: grantSalt.bytes,
       algorithm: "AES-GCM-256"
-    },
-    encryptedContent: encContent.ciphertext,
-    encryptedContentIv: encContent.iv,
-    signature: contentSig.signature
+    }
   } })
 
   // Get timestamp for auth
@@ -60,16 +58,16 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
   tsStr = jsonStringify({ value: t.timestamp })
 
   // Build auth signature: METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)
-  reqPath = stringConcat({ parts: ["/api/documents/by-slug/", slug] })
+  reqPath = "/api/documents"
   bodyHash = sha256({ data: requestBody.text })
-  authMessage = stringConcat({ parts: ["PUT", "\n", reqPath.result, "\n", tsStr.text, "\n", bodyHash.hash] })
+  authMessage = stringConcat({ parts: ["POST", "\n", reqPath, "\n", tsStr.text, "\n", bodyHash.hash] })
   authSig = ed25519Sign({ data: authMessage.result, privateKey: identityParsed.value.signingPrivateKey })
 
-  // Make the API call
-  response = httpRequest({
+  // Create the document
+  createResponse = httpRequest({
     host: "agentdocs-api.uriva.deno.net",
-    method: "PUT",
-    path: reqPath.result,
+    method: "POST",
+    path: reqPath,
     headers: {
       "content-type": "application/json",
       "x-identity-id": identityId.value,
@@ -79,5 +77,39 @@ upsertDocument = (slug: string, title: string, content: string): { status: numbe
     body: requestBody.text
   })
 
-  return { status: response.status, body: response.body, documentKey: docKeyResult.key }
+  // Parse the response to get the new document ID, then append the first edit
+  parsedCreate = jsonParse({ text: createResponse.body })
+  docId = parsedCreate.value.document.id
+
+  // Build the initial-edit request body
+  editBody = jsonStringify({ value: {
+    encryptedContent: encContent.ciphertext,
+    encryptedContentIv: encContent.iv,
+    signature: contentSig.signature,
+    sequenceNumber: 0,
+    algorithm: "AES-GCM-256"
+  } })
+
+  // Sign the edit request
+  editPath = stringConcat({ parts: ["/api/documents/", docId, "/edits"] })
+  editTs = timestamp()
+  editTsStr = jsonStringify({ value: editTs.timestamp })
+  editBodyHash = sha256({ data: editBody.text })
+  editAuthMessage = stringConcat({ parts: ["POST", "\n", editPath.result, "\n", editTsStr.text, "\n", editBodyHash.hash] })
+  editAuthSig = ed25519Sign({ data: editAuthMessage.result, privateKey: identityParsed.value.signingPrivateKey })
+
+  editResponse = httpRequest({
+    host: "agentdocs-api.uriva.deno.net",
+    method: "POST",
+    path: editPath.result,
+    headers: {
+      "content-type": "application/json",
+      "x-identity-id": identityId.value,
+      "x-timestamp": editTsStr.text,
+      "x-signature": editAuthSig.signature
+    },
+    body: editBody.text
+  })
+
+  return { status: editResponse.status, body: editResponse.body, documentKey: docKeyResult.key, documentId: docId }
 }
