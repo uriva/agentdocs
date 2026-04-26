@@ -25,11 +25,11 @@ loadIdentity = (): {
   encryptionPublicKey: string
 } => {
   blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode(blob.value)
-  parsed = jsonParse(decoded.text)
+  decoded = base64urlDecode({ encoded: blob.value })
+  parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
-  signPub = ed25519PublicFromPrivate(bundle.signing.privateKey)
-  encPub = x25519PublicFromPrivate(bundle.encryption.privateKey)
+  signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
+  encPub = x25519PublicFromPrivate({ privateKey: bundle.encryption.privateKey })
   return {
     id: bundle.id,
     signingPrivateKey: bundle.signing.privateKey,
@@ -46,7 +46,7 @@ buildAuthSignature = (
   body: string,
   signingPrivateKey: string
 ): { signature: string } => {
-  h = sha256(body)
+  h = sha256({ data: body })
   msg = stringConcat({ parts: [method, "\n", path, "\n", timestampStr, "\n", h.hash] })
   return ed25519Sign({ data: msg.result, privateKey: signingPrivateKey })
 }
@@ -57,7 +57,7 @@ signedGet = (
   signingPrivateKey: string
 ): { status: number, body: string } => {
   t = timestamp()
-  tsStr = jsonStringify(t.timestamp)
+  tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("GET", path, tsStr.text, "", signingPrivateKey)
   return httpRequest({
     host: "agentdocs-api.uriva.deno.net",
@@ -111,7 +111,7 @@ decryptOne = (doc: {
     iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
-  snapshot = jsonParse(content.plaintext)
+  snapshot = jsonParse({ text: content.plaintext })
   data = snapshot.value
   return {
     documentId: doc.id,
@@ -133,7 +133,7 @@ searchDocuments = (): {
 } => {
   identity = loadIdentity()
   res = signedGet("/api/documents", identity.id, identity.signingPrivateKey)
-  parsed = jsonParse(res.body)
+  parsed = jsonParse({ text: res.body })
   rawDocs = parsed.value.documents
   decrypted = map(decryptOne, rawDocs)
   return { documents: decrypted }

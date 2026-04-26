@@ -22,11 +22,11 @@ loadIdentity = (): {
   encryptionPublicKey: string
 } => {
   blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode(blob.value)
-  parsed = jsonParse(decoded.text)
+  decoded = base64urlDecode({ encoded: blob.value })
+  parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
-  signPub = ed25519PublicFromPrivate(bundle.signing.privateKey)
-  encPub = x25519PublicFromPrivate(bundle.encryption.privateKey)
+  signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
+  encPub = x25519PublicFromPrivate({ privateKey: bundle.encryption.privateKey })
   return {
     id: bundle.id,
     signingPrivateKey: bundle.signing.privateKey,
@@ -43,7 +43,7 @@ buildAuthSignature = (
   body: string,
   signingPrivateKey: string
 ): { signature: string } => {
-  h = sha256(body)
+  h = sha256({ data: body })
   msg = stringConcat({ parts: [method, "\n", path, "\n", timestampStr, "\n", h.hash] })
   return ed25519Sign({ data: msg.result, privateKey: signingPrivateKey })
 }
@@ -54,7 +54,7 @@ signedGet = (
   signingPrivateKey: string
 ): { status: number, body: string } => {
   t = timestamp()
-  tsStr = jsonStringify(t.timestamp)
+  tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("GET", path, tsStr.text, "", signingPrivateKey)
   return httpRequest({
     host: "agentdocs-api.uriva.deno.net",
@@ -76,7 +76,7 @@ signedPost = (
   signingPrivateKey: string
 ): { status: number, body: string } => {
   t = timestamp()
-  tsStr = jsonStringify(t.timestamp)
+  tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("POST", path, tsStr.text, body, signingPrivateKey)
   return httpRequest({
     host: "agentdocs-api.uriva.deno.net",
@@ -102,13 +102,13 @@ addEdit = (
   // Get current snapshot sequence as patch base.
   docPath = stringConcat({ parts: ["/api/documents/", documentId] })
   docRes = signedGet(docPath.result, identity.id, identity.signingPrivateKey)
-  docParsed = jsonParse(docRes.body)
+  docParsed = jsonParse({ text: docRes.body })
   baseSeq = docParsed.value.document.snapshotSequenceNumber
   nextSeq = baseSeq + 1
 
   // Encrypt + sign the patch, include encrypted resulting snapshot.
   patch = jsonStringify({ type: "replace_snapshot", snapshot: newSnapshotJson })
-  patchHash = sha256(newSnapshotJson)
+  patchHash = sha256({ data: newSnapshotJson })
   encPatch = aesEncrypt({ plaintext: patch.text, key: documentKey })
   encSnapshot = aesEncrypt({ plaintext: newSnapshotJson, key: documentKey })
   sig = ed25519Sign({ data: patch.text, privateKey: identity.signingPrivateKey })

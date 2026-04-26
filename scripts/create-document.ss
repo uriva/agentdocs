@@ -31,11 +31,11 @@ loadIdentity = (): {
   encryptionPublicKey: string
 } => {
   blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode(blob.value)
-  parsed = jsonParse(decoded.text)
+  decoded = base64urlDecode({ encoded: blob.value })
+  parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
-  signPub = ed25519PublicFromPrivate(bundle.signing.privateKey)
-  encPub = x25519PublicFromPrivate(bundle.encryption.privateKey)
+  signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
+  encPub = x25519PublicFromPrivate({ privateKey: bundle.encryption.privateKey })
   return {
     id: bundle.id,
     signingPrivateKey: bundle.signing.privateKey,
@@ -52,7 +52,7 @@ buildGrant = (
   myEncPriv: string,
   theirEncPub: string
 ): { encryptedSymmetricKey: string, iv: string, salt: string, algorithm: string } => {
-  salt = randomBytes(16)
+  salt = randomBytes({ length: 16 })
   derived = x25519DeriveKey({
     myPrivateKey: myEncPriv,
     theirPublicKey: theirEncPub,
@@ -77,7 +77,7 @@ buildAuthSignature = (
   body: string,
   signingPrivateKey: string
 ): { signature: string } => {
-  h = sha256(body)
+  h = sha256({ data: body })
   msg = stringConcat({ parts: [method, "\n", path, "\n", timestampStr, "\n", h.hash] })
   return ed25519Sign({ data: msg.result, privateKey: signingPrivateKey })
 }
@@ -90,7 +90,7 @@ signedPost = (
   signingPrivateKey: string
 ): { status: number, body: string } => {
   t = timestamp()
-  tsStr = jsonStringify(t.timestamp)
+  tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("POST", path, tsStr.text, body, signingPrivateKey)
   return httpRequest({
     host: "agentdocs-api.uriva.deno.net",
@@ -114,7 +114,7 @@ createDocument = (
   docKey = aesGenerateKey()
   grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
   snapshot = jsonStringify({ kind: "doc", title: title, content: content })
-  snapshotHash = sha256(snapshot.text)
+  snapshotHash = sha256({ data: snapshot.text })
   encSnapshot = aesEncrypt({ plaintext: snapshot.text, key: docKey.key })
 
   // POST /api/documents — creates with encrypted latest snapshot + self grant.
@@ -126,7 +126,7 @@ createDocument = (
     accessGrant: grant
   })
   createRes = signedPost("/api/documents", createBody.text, identity.id, identity.signingPrivateKey)
-  parsed = jsonParse(createRes.body)
+  parsed = jsonParse({ text: createRes.body })
   docId = parsed.value.document.id
 
   // POST /api/documents/:id/edits — append first patch + checkpoint update.

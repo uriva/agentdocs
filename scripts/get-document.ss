@@ -18,11 +18,11 @@ loadIdentity = (): {
   encryptionPublicKey: string
 } => {
   blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode(blob.value)
-  parsed = jsonParse(decoded.text)
+  decoded = base64urlDecode({ encoded: blob.value })
+  parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
-  signPub = ed25519PublicFromPrivate(bundle.signing.privateKey)
-  encPub = x25519PublicFromPrivate(bundle.encryption.privateKey)
+  signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
+  encPub = x25519PublicFromPrivate({ privateKey: bundle.encryption.privateKey })
   return {
     id: bundle.id,
     signingPrivateKey: bundle.signing.privateKey,
@@ -39,7 +39,7 @@ buildAuthSignature = (
   body: string,
   signingPrivateKey: string
 ): { signature: string } => {
-  h = sha256(body)
+  h = sha256({ data: body })
   msg = stringConcat({ parts: [method, "\n", path, "\n", timestampStr, "\n", h.hash] })
   return ed25519Sign({ data: msg.result, privateKey: signingPrivateKey })
 }
@@ -50,7 +50,7 @@ signedGet = (
   signingPrivateKey: string
 ): { status: number, body: string } => {
   t = timestamp()
-  tsStr = jsonStringify(t.timestamp)
+  tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("GET", path, tsStr.text, "", signingPrivateKey)
   return httpRequest({
     host: "agentdocs-api.uriva.deno.net",
@@ -78,7 +78,7 @@ getDocument = (documentId: string): {
   // Fetch the single doc (with grant) + its edit history in sequence.
   docPath = stringConcat({ parts: ["/api/documents/", documentId] })
   docRes = signedGet(docPath.result, identity.id, identity.signingPrivateKey)
-  docParsed = jsonParse(docRes.body)
+  docParsed = jsonParse({ text: docRes.body })
   doc = docParsed.value.document
   grant = doc.accessGrants[0]
   grantorPub = grant.grantor[0].encryptionPublicKey
@@ -101,7 +101,7 @@ getDocument = (documentId: string): {
     iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
-  snapshot = jsonParse(content.plaintext)
+  snapshot = jsonParse({ text: content.plaintext })
   data = snapshot.value
 
   return {
