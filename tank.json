@@ -1,0 +1,20 @@
+{
+  "name": "@uriva/agentdocs",
+  "version": "1.0.0",
+  "repository": "https://github.com/uriva/agentdocs",
+  "description": "End-to-end encrypted JSON documents for AI agents — store, retrieve, and share via safescript.",
+  "visibility": "public",
+  "skills": {
+    "agentdocs": "skill/SKILL.md"
+  },
+  "permissions": {
+    "network": {
+      "outbound": ["agentdocs-api.uriva.deno.net"]
+    },
+    "filesystem": {
+      "read": [],
+      "write": []
+    },
+    "subprocess": false
+  }
+}
