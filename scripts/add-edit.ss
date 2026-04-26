@@ -6,23 +6,21 @@
 // to pick base sequence, builds an encrypted replace_snapshot patch,
 // and updates the document checkpoint in the same API call.
 //
-// Secrets required:
-//   agentdocs-identity
+// Parameters:
+//   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp
 
-loadIdentity = (): {
+loadIdentity = (bundleBase64url: string): {
   id: string,
   signingPrivateKey: string,
   signingPublicKey: string,
   encryptionPrivateKey: string,
   encryptionPublicKey: string
 } => {
-  blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode({ encoded: blob.value })
+  decoded = base64urlDecode({ encoded: bundleBase64url })
   parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
   signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
@@ -95,9 +93,10 @@ signedPost = (
 addEdit = (
   documentId: string,
   documentKey: string,
-  newSnapshotJson: string
+  newSnapshotJson: string,
+  agentdocsIdentity: string
 ): { status: number, body: string, sequenceNumber: number } => {
-  identity = loadIdentity()
+  identity = loadIdentity(agentdocsIdentity)
 
   // Get current snapshot sequence as patch base.
   docPath = stringConcat({ parts: ["/api/documents/", documentId] })

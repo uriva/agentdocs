@@ -7,25 +7,26 @@
 // happens in the agent's code because safescript has no closures and so
 // no natural way to thread a query string into a map callback.
 //
+// Uses reduce (instead of map) so the identity fields ride through the
+// accumulator — safescript's map callbacks are unary and have no closures.
+//
 // Scales to ~thousands of docs per identity.
 //
-// Secrets required:
-//   agentdocs-identity
+// Parameters:
+//   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp
 
-loadIdentity = (): {
+loadIdentity = (bundleBase64url: string): {
   id: string,
   signingPrivateKey: string,
   signingPublicKey: string,
   encryptionPrivateKey: string,
   encryptionPublicKey: string
 } => {
-  blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode({ encoded: blob.value })
+  decoded = base64urlDecode({ encoded: bundleBase64url })
   parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
   signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
@@ -72,31 +73,34 @@ signedGet = (
   })
 }
 
-// Decrypt one document: unwrap grant → recover K → decrypt latest checkpoint
-// snapshot. Reads the identity secret each call because
-// safescript has no closures — map callbacks must be unary.
-decryptOne = (doc: {
-  id: string,
-  encryptedSnapshot: string,
-  encryptedSnapshotIv: string,
-  accessGrants: {
-    encryptedSymmetricKey: string,
-    iv: string,
-    salt: string,
-    grantor: { encryptionPublicKey: string }[]
-  }[]
-}): {
-  documentId: string,
-  kind: string,
-  title: string,
-  content: string,
-  documentKey: string
+// reduce callback: accumulator carries identity fields + results list.
+// Each step decrypts one document using identity fields from the acc,
+// appends the decrypted result, and returns the new accumulator.
+decryptReducer = (
+  acc: {
+    results: { documentId: string, kind: string, title: string, content: string, documentKey: string }[],
+    encPriv: string
+  },
+  element: {
+    id: string,
+    encryptedSnapshot: string,
+    encryptedSnapshotIv: string,
+    accessGrants: {
+      encryptedSymmetricKey: string,
+      iv: string,
+      salt: string,
+      grantor: { encryptionPublicKey: string }[]
+    }[]
+  }
+): {
+  results: { documentId: string, kind: string, title: string, content: string, documentKey: string }[],
+  encPriv: string
 } => {
-  identity = loadIdentity()
+  doc = element
   grant = doc.accessGrants[0]
   grantorPub = grant.grantor[0].encryptionPublicKey
   derived = x25519DeriveKey({
-    myPrivateKey: identity.encryptionPrivateKey,
+    myPrivateKey: acc.encPriv,
     theirPublicKey: grantorPub,
     salt: grant.salt,
     info: "agentdocs-access-grant"
@@ -106,23 +110,25 @@ decryptOne = (doc: {
     iv: grant.iv,
     key: derived.derivedKey
   })
-  content = aesDecrypt({
+  contentPlain = aesDecrypt({
     ciphertext: doc.encryptedSnapshot,
     iv: doc.encryptedSnapshotIv,
     key: docKey.plaintext
   })
-  snapshot = jsonParse({ text: content.plaintext })
+  snapshot = jsonParse({ text: contentPlain.plaintext })
   data = snapshot.value
-  return {
+  decrypted = {
     documentId: doc.id,
     kind: data.kind,
     title: data.title,
     content: data.content,
     documentKey: docKey.plaintext
   }
+  appended = arrayAppend({ array: acc.results, element: decrypted })
+  return { results: appended.array, encPriv: acc.encPriv }
 }
 
-searchDocuments = (): {
+searchDocuments = (agentdocsIdentity: string): {
   documents: {
     documentId: string,
     kind: string,
@@ -131,10 +137,10 @@ searchDocuments = (): {
     documentKey: string
   }[]
 } => {
-  identity = loadIdentity()
+  identity = loadIdentity(agentdocsIdentity)
   res = signedGet("/api/documents", identity.id, identity.signingPrivateKey)
   parsed = jsonParse({ text: res.body })
   rawDocs = parsed.value.documents
-  decrypted = map(decryptOne, rawDocs)
-  return { documents: decrypted }
+  final = reduce(decryptReducer, { results: [], encPriv: identity.encryptionPrivateKey }, rawDocs)
+  return { documents: final.results }
 }

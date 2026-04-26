@@ -8,23 +8,21 @@
 //
 // Fetches the recipient's public keys from GET /api/identities/:id.
 //
-// Secrets required:
-//   agentdocs-identity
+// Parameters:
+//   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp, randomBytes
 
-loadIdentity = (): {
+loadIdentity = (bundleBase64url: string): {
   id: string,
   signingPrivateKey: string,
   signingPublicKey: string,
   encryptionPrivateKey: string,
   encryptionPublicKey: string
 } => {
-  blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode({ encoded: blob.value })
+  decoded = base64urlDecode({ encoded: bundleBase64url })
   parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
   signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
@@ -118,9 +116,10 @@ signedPost = (
 shareDocument = (
   documentId: string,
   documentKey: string,
-  granteeIdentityId: string
+  granteeIdentityId: string,
+  agentdocsIdentity: string
 ): { status: number, body: string } => {
-  identity = loadIdentity()
+  identity = loadIdentity(agentdocsIdentity)
 
   // Fetch the grantee's public keys.
   idPath = stringConcat({ parts: ["/api/identities/", granteeIdentityId] })

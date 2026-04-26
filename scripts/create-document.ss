@@ -11,27 +11,25 @@
 // and documentKey — documentKey is the only thing that can decrypt the
 // document later.
 //
-// Secrets required:
-//   agentdocs-identity -- base64url-encoded JSON exported from the web UI:
-//                         { id, name, signing: { privateKey },
-//                           encryption: { privateKey }, algorithm: {...} }
+// Parameters:
+//   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface (static analysis):
-//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp, randomBytes
 
 // Load + parse the identity bundle. The bundle only carries private keys;
 // public keys are derived here so downstream code has the full pair.
-loadIdentity = (): {
+// bundleBase64url is the base64url-encoded identity JSON, passed as a regular
+// input (not read from secrets — secrets are regular inputs in safescript).
+loadIdentity = (bundleBase64url: string): {
   id: string,
   signingPrivateKey: string,
   signingPublicKey: string,
   encryptionPrivateKey: string,
   encryptionPublicKey: string
 } => {
-  blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode({ encoded: blob.value })
+  decoded = base64urlDecode({ encoded: bundleBase64url })
   parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
   signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
@@ -108,9 +106,10 @@ signedPost = (
 
 createDocument = (
   title: string,
-  content: string
+  content: string,
+  agentdocsIdentity: string
 ): { documentId: string, documentKey: string, status: number, body: string } => {
-  identity = loadIdentity()
+  identity = loadIdentity(agentdocsIdentity)
   docKey = aesGenerateKey()
   grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
   snapshot = jsonStringify({ kind: "doc", title: title, content: content })

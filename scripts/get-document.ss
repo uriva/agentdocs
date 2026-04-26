@@ -2,23 +2,21 @@
 // Fetches a single document by id and decrypts the latest JSON snapshot.
 // Returns { documentId, kind, title, content, documentKey, sequenceNumber }.
 //
-// Secrets required:
-//   agentdocs-identity
+// Parameters:
+//   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   secrets read: agentdocs-identity
 //   hosts: agentdocs-api.uriva.deno.net
 //   env: timestamp
 
-loadIdentity = (): {
+loadIdentity = (bundleBase64url: string): {
   id: string,
   signingPrivateKey: string,
   signingPublicKey: string,
   encryptionPrivateKey: string,
   encryptionPublicKey: string
 } => {
-  blob = readSecret({ name: "agentdocs-identity" })
-  decoded = base64urlDecode({ encoded: blob.value })
+  decoded = base64urlDecode({ encoded: bundleBase64url })
   parsed = jsonParse({ text: decoded.text })
   bundle = parsed.value
   signPub = ed25519PublicFromPrivate({ privateKey: bundle.signing.privateKey })
@@ -65,7 +63,7 @@ signedGet = (
   })
 }
 
-getDocument = (documentId: string): {
+getDocument = (documentId: string, agentdocsIdentity: string): {
   documentId: string,
   kind: string,
   title: string,
@@ -73,7 +71,7 @@ getDocument = (documentId: string): {
   documentKey: string,
   sequenceNumber: number
 } => {
-  identity = loadIdentity()
+  identity = loadIdentity(agentdocsIdentity)
 
   // Fetch the single doc (with grant) + its edit history in sequence.
   docPath = stringConcat({ parts: ["/api/documents/", documentId] })

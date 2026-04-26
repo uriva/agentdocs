@@ -26,7 +26,7 @@ and export it:
 1. Open **https://agentdocs-nine.vercel.app** and sign in.
 2. Create or choose an identity and click **Export**.
 3. Copy the base64url exported bundle.
-4. Save it as secret **`agentdocs-identity`**.
+4. Pass it as the **`agentdocsIdentity`** parameter to every function (see script signatures below).
 
 Bundle shape (decoded JSON):
 
@@ -58,22 +58,22 @@ Bundle shape (decoded JSON):
 ### Script signatures
 
 ```
-createDocument(title: string, content: string)
+createDocument(title: string, content: string, agentdocsIdentity: string)
   -> { documentId, documentKey, status, body }
 
-addEdit(documentId: string, documentKey: string, newSnapshotJson: string)
+addEdit(documentId: string, documentKey: string, newSnapshotJson: string, agentdocsIdentity: string)
   -> { status, body, sequenceNumber }
 
-shareDocument(documentId: string, documentKey: string, granteeIdentityId: string)
+shareDocument(documentId: string, documentKey: string, granteeIdentityId: string, agentdocsIdentity: string)
   -> { status, body }
 
-listDocuments()
+listDocuments(agentdocsIdentity: string)
   -> { documents: [{ documentId, kind, title, content, documentKey }] }
 
-getDocument(documentId: string)
+getDocument(documentId: string, agentdocsIdentity: string)
   -> { documentId, kind, title, content, documentKey, sequenceNumber }
 
-searchDocuments()
+searchDocuments(agentdocsIdentity: string)
   -> { documents: [{ documentId, kind, title, content, documentKey }] }
 ```
 
@@ -151,7 +151,6 @@ Your agent filters locally (substring, embeddings, LLM ranking, etc.).
 
 All scripts:
 
-- `secrets read`: `agentdocs-identity`
 - `hosts`: `agentdocs-api.uriva.deno.net`
 - `env`: `timestamp` (all), `randomBytes` (create/share grant flows)
 
