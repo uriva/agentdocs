@@ -23,7 +23,7 @@ safescript language: https://safescript.dev
 Agents do not generate identities. Ask the user to create one in the web UI
 and export it:
 
-1. Open **https://agentdocs.dev** and sign in.
+1. Open **https://agentdocs-nine.vercel.app** and sign in.
 2. Create or choose an identity and click **Export**.
 3. Copy the base64url exported bundle.
 4. Save it as secret **`agentdocs-identity`**.
@@ -54,9 +54,6 @@ Bundle shape (decoded JSON):
 | `list-documents.ss`   | Return decrypted latest snapshot per doc |
 | `get-document.ss`     | Return one decrypted latest snapshot |
 | `search-documents.ss` | Return all decrypted latest snapshots |
-
-`rename-document.ss` was removed. To rename, append a new snapshot with updated
-`title`.
 
 ### Script signatures
 
