@@ -141,9 +141,9 @@ history.
 
 Recommended conventions are documented in:
 
-- `skill/conventions/doc.md`
-- `skill/conventions/ticket.md`
-- `skill/conventions/spreadsheet.md`
+- `conventions/doc.md`
+- `conventions/ticket.md`
+- `conventions/spreadsheet.md`
 
 ## Searching
 
