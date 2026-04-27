@@ -3,29 +3,41 @@ import type { ExecutionContext } from "@uri/safescript";
 
 const identity = Deno.env.get("AGENTDOCS_TEST_IDENTITY");
 
-const createDocSource = await Deno.readTextFile(
+const source = await Deno.readTextFile(
   new URL("../scripts/create-document.ss", import.meta.url),
 );
-const testSource = await Deno.readTextFile(
-  new URL("create-document-test.ss", import.meta.url),
-);
 
-const program = parse(
-  tokenize(createDocSource + "\n" + testSource),
-  builtinUnaryFields,
-);
-
-const ctx: ExecutionContext = {
-  fetch: (() => { throw new Error("fetch should not be called"); }) as typeof fetch,
-};
+const program = parse(tokenize(source), builtinUnaryFields);
 
 Deno.test(
   "create-document",
   { ignore: !identity, sanitizeResources: false, sanitizeOps: false },
   async () => {
-    const result = await interpret(program, "testCreateDocument", {
-      identity,
+    let callCount = 0;
+    let firstBody = "";
+    const ctx: ExecutionContext = {
+      fetch: ((_input, init?) => {
+        callCount++;
+        firstBody = firstBody || ((init as RequestInit)?.body as string ?? "");
+        if (callCount === 1) {
+          return Promise.resolve(new Response(
+            JSON.stringify({ document: { id: "mock-doc-id" } }),
+            { status: 201 },
+          ));
+        }
+        return Promise.resolve(new Response(
+          JSON.stringify({ edit: { id: "mock-edit-id" } }),
+          { status: 201 },
+        ));
+      }) as typeof fetch,
+    };
+    const result = await interpret(program, "createDocument", {
+      title: "Test",
+      content: "Content",
+      agentdocsIdentity: identity,
     }, ctx) as { documentId: string; documentKey: string; status: number };
+    if (callCount !== 2) throw new Error(`Expected 2 fetch calls, got ${callCount}`);
+    if (!firstBody.includes("AES-GCM-256")) throw new Error("Missing algorithm in body");
     if (result.status !== 201) throw new Error(`Expected 201, got ${result.status}`);
     if (result.documentId !== "mock-doc-id") throw new Error("Expected mock-doc-id");
   },
