@@ -1,5 +1,5 @@
 {
   "imports": {
-    "@uri/safescript": "jsr:@uri/safescript@0.1.8"
+    "@uri/safescript": "jsr:@uri/safescript@0.1.9"
   }
 }

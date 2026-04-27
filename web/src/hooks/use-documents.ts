@@ -197,7 +197,6 @@ export function useDocuments(identity: StoredIdentity | null) {
             docKey,
           });
         } catch {
-          // Can't decrypt — wrong key or corrupt grant, skip
           continue;
         }
       }

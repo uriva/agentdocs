@@ -289,7 +289,10 @@ export async function decryptAccessGrant(
     )
   );
 
-  return base64urlEncode(docKeyBytes);
+  if (docKeyBytes.length === 32) return base64urlEncode(docKeyBytes);
+
+  const docKeyStr = new TextDecoder().decode(docKeyBytes);
+  return docKeyStr;
 }
 
 // ─── Signing (Ed25519) ──────────────────────────────────────────────────────
