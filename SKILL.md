@@ -134,8 +134,8 @@ markdown syntaxes.
 
 When one document references another document:
 
-1. Add a normal markdown link in `content` using the agentdocs web route:
-   `[Architecture Details](https://agentdocs-nine.vercel.app/app/doc/0b639d84-5998-4e86-8ef9-d1bd4b7c6cce)`
+1. Add a normal markdown link in `content` using the `agentdocs:` protocol:
+   `[Architecture Details](agentdocs:0b639d84-5998-4e86-8ef9-d1bd4b7c6cce)`
 2. Also add or update a top-level `linkedDocuments` array in the JSON snapshot.
 
 Canonical snapshot shape:
@@ -144,7 +144,7 @@ Canonical snapshot shape:
 {
   "kind": "doc",
   "title": "Project Context & Wiki Initialization",
-  "content": "See [Architecture Details](https://agentdocs-nine.vercel.app/app/doc/0b639d84-5998-4e86-8ef9-d1bd4b7c6cce).",
+  "content": "See [Architecture Details](agentdocs:0b639d84-5998-4e86-8ef9-d1bd4b7c6cce).",
   "linkedDocuments": [
     {
       "documentId": "0b639d84-5998-4e86-8ef9-d1bd4b7c6cce",
@@ -164,7 +164,11 @@ Rules:
   `source`, or `reference`.
 - Preserve existing `linkedDocuments` entries when adding a new link.
 - If you create the target document, use the `documentId` returned by
-  `createDocument` in both the markdown URL and `linkedDocuments`.
+  `createDocument` in both the markdown `agentdocs:` URL and
+  `linkedDocuments`.
+- Do not use hardcoded web domains for internal document links. Use
+  `agentdocs:<documentId>` so links work across localhost, previews, and custom
+  domains.
 
 ## JSON-first model (everything is a document)
 

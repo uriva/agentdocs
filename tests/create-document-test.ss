@@ -15,7 +15,7 @@ mockHttpRequest = (host: string, method: string, path: string, headers: { x_time
 
 testCreateDocument = (): { ok: boolean } => {
   id = testIdentity()
-  result = override(createDocument, { httpRequest: mockHttpRequest })("Test", "Content", id.bundle)
+  result = override(createDocument, { httpRequest: mockHttpRequest })({ title: "Test", content: "Content", agentdocsIdentity: id.bundle })
   assert({ condition: result.status == 201, message: stringConcat({ parts: ["Expected 201, got ", jsonStringify({ value: result.status }).text] }).result })
   assert({ condition: result.documentId == "mock-doc-id", message: "Expected mock-doc-id" })
   return { ok: true }

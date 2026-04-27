@@ -50,6 +50,12 @@ function getDocContext(docId: string): DocContext | null {
   }
 }
 
+function agentdocsDocId(href: string | undefined): string | null {
+  if (!href?.startsWith("agentdocs:")) return null;
+  const id = href.slice("agentdocs:".length).trim();
+  return id || null;
+}
+
 export default function DocPage() {
   const params = useParams();
   const router = useRouter();
@@ -385,7 +391,28 @@ export default function DocPage() {
             <div className="flex-1 mx-auto w-full max-w-3xl px-6 py-6 overflow-auto">
               {content.trim() ? (
                 <div className="prose-agentdocs">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => {
+                        const linkedDocId = agentdocsDocId(href);
+                        if (!linkedDocId) {
+                          return <a href={href}>{children}</a>;
+                        }
+                        return (
+                          <a
+                            href={`/app/doc/${linkedDocId}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              router.push(`/app/doc/${linkedDocId}`);
+                            }}
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
+                    }}
+                  >
                     {content}
                   </ReactMarkdown>
                 </div>

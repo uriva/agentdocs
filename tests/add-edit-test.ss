@@ -20,7 +20,7 @@ testAddEdit = (): { ok: boolean } => {
   id = testIdentity()
   docKey = aesGenerateKey()
   newSnapshot = jsonStringify({ value: { kind: "doc", title: "Updated", content: "**Hello** from [link](https://example.com)" } })
-  result = override(addEdit, { httpRequest: mockHttpRequest })("mock-doc-id", docKey.key, newSnapshot.text, id.bundle)
+  result = override(addEdit, { httpRequest: mockHttpRequest })({ documentId: "mock-doc-id", documentKey: docKey.key, newSnapshotJson: newSnapshot.text, agentdocsIdentity: id.bundle })
   assert({ condition: result.status == 201, message: stringConcat({ parts: ["Expected 201, got ", jsonStringify({ value: result.status }).text] }).result })
   assert({ condition: result.sequenceNumber == 1, message: stringConcat({ parts: ["Expected seq 1, got ", jsonStringify({ value: result.sequenceNumber }).text] }).result })
   return { ok: true }
