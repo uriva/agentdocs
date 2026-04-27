@@ -72,7 +72,11 @@ export function CreateIdentityDialog({
     <>
       {trigger ? (
         cloneElement(trigger as React.ReactElement<{ onClick?: () => void }>, {
-          onClick: () => setOpen(true),
+          onClick: () => {
+            (trigger as React.ReactElement<{ onClick?: () => void }>).props
+              .onClick?.();
+            setOpen(true);
+          },
         })
       ) : (
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>

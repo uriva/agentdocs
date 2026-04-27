@@ -80,8 +80,7 @@ export function IdentitySwitcher({
         }
       />
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger className="focus-visible:outline-none">
-          <span className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+        <DropdownMenuTrigger className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none">
             <span
               className="h-2 w-2 rounded-full bg-foreground shrink-0"
               aria-hidden
@@ -93,7 +92,6 @@ export function IdentitySwitcher({
             >
               {fp}
             </Badge>
-          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -127,32 +125,30 @@ export function IdentitySwitcher({
             );
           })}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setMenuOpen(false)}
-            className="cursor-pointer text-sm text-muted-foreground p-0"
-          >
-            <ImportIdentityDialog
-              onImport={onImport}
-              trigger={
-                <span className="flex items-center w-full px-1.5 py-1 cursor-pointer">
-                  Import Identity
-                </span>
-              }
-            />
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setMenuOpen(false)}
-            className="cursor-pointer text-sm text-muted-foreground p-0"
-          >
-            <CreateIdentityDialog
-              onCreateIdentity={onCreate}
-              trigger={
-                <span className="flex items-center w-full px-1.5 py-1 cursor-pointer">
-                  + New Identity
-                </span>
-              }
-            />
-          </DropdownMenuItem>
+          <ImportIdentityDialog
+            onImport={onImport}
+            trigger={
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="w-full rounded-md px-1.5 py-1 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                Import Identity
+              </button>
+            }
+          />
+          <CreateIdentityDialog
+            onCreateIdentity={onCreate}
+            trigger={
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="w-full rounded-md px-1.5 py-1 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                + New Identity
+              </button>
+            }
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
