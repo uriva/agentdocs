@@ -1,14 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fingerprint, type StoredIdentity } from "@/lib/identity-store";
@@ -79,8 +71,12 @@ export function IdentitySwitcher({
           </Button>
         }
       />
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none">
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none"
+        >
             <span
               className="h-2 w-2 rounded-full bg-foreground shrink-0"
               aria-hidden
@@ -92,39 +88,47 @@ export function IdentitySwitcher({
             >
               {fp}
             </Badge>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Identities
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {identities.map((identity) => {
-            const idFp = identity.keyPair?.signing?.publicKey
-              ? fingerprint(identity.keyPair.signing.publicKey)
-              : "???";
-            return (
-              <DropdownMenuItem
-                key={identity.id}
-                onClick={() => onSwitch(identity.id)}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                    identity.id === active.id
-                      ? "bg-foreground"
-                      : "bg-muted-foreground/30"
-                  }`}
-                />
-                <span className="flex-1 truncate text-sm">
-                  {identity.name}
-                </span>
-                <code className="text-[10px] font-mono text-muted-foreground">
-                  {idFp}
-                </code>
-              </DropdownMenuItem>
-            );
-          })}
-          <DropdownMenuSeparator />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-0 top-10 z-50 w-64 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
+            <div className="px-1.5 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Identities
+            </div>
+            <div className="px-1.5 pb-1 text-[10px] font-mono text-muted-foreground/60 break-all">
+              Active: {active.id}
+            </div>
+            <div className="-mx-1 my-1 h-px bg-border" />
+            {identities.map((identity) => {
+              const idFp = identity.keyPair?.signing?.publicKey
+                ? fingerprint(identity.keyPair.signing.publicKey)
+                : "???";
+              return (
+                <button
+                  type="button"
+                  key={identity.id}
+                  onClick={() => {
+                    onSwitch(identity.id);
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      identity.id === active.id
+                        ? "bg-foreground"
+                        : "bg-muted-foreground/30"
+                    }`}
+                  />
+                  <span className="flex-1 truncate text-sm">
+                    {identity.name}
+                  </span>
+                  <code className="text-[10px] font-mono text-muted-foreground">
+                    {idFp}
+                  </code>
+                </button>
+              );
+            })}
+            <div className="-mx-1 my-1 h-px bg-border" />
           <ImportIdentityDialog
             onImport={onImport}
             trigger={
@@ -149,8 +153,9 @@ export function IdentitySwitcher({
               </button>
             }
           />
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

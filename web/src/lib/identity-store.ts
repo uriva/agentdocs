@@ -41,16 +41,21 @@ export function getIdentities(): StoredIdentity[] {
 export function getActiveIdentity(): StoredIdentity | null {
   if (typeof window === "undefined") return null;
   const activeId = localStorage.getItem(ACTIVE_KEY);
+  const all = readAll();
   if (!activeId) {
-    // Fall back to first identity
-    const all = readAll();
     if (all.length > 0) {
       setActiveIdentity(all[0].id);
       return all[0];
     }
     return null;
   }
-  return readAll().find((i) => i.id === activeId) ?? null;
+  const active = all.find((i) => i.id === activeId);
+  if (active) return active;
+  if (all.length > 0) {
+    setActiveIdentity(all[0].id);
+    return all[0];
+  }
+  return null;
 }
 
 /** Set the active identity by ID */
