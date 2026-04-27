@@ -6,11 +6,28 @@ on:
       - main
 
 jobs:
+  changes:
+    name: Detect changed files
+    runs-on: ubuntu-latest
+    outputs:
+      tank: ${{ steps.filter.outputs.tank }}
+      schema: ${{ steps.filter.outputs.schema }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            tank:
+              - tank.json
+            schema:
+              - web/instant.schema.ts
+              - web/instant.perms.ts
+
   deploy-tank:
     name: Deploy Tank Skill
-    if: |
-      contains(github.event.head_commit.modified, 'tank.json') ||
-      contains(github.event.head_commit.added, 'tank.json')
+    needs: changes
+    if: needs.changes.outputs.tank == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +40,8 @@ jobs:
 
   push-schema:
     name: Push InstantDB Schema & Permissions
-    if: |
-      contains(github.event.head_commit.modified, 'web/instant.schema.ts') ||
-      contains(github.event.head_commit.modified, 'web/instant.perms.ts') ||
-      contains(github.event.head_commit.added, 'web/instant.schema.ts') ||
-      contains(github.event.head_commit.added, 'web/instant.perms.ts')
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,4 +55,4 @@ jobs:
         env:
           INSTANT_APP_ID: ${{ secrets.INSTANT_APP_ID }}
           INSTANT_ADMIN_TOKEN: ${{ secrets.INSTANT_ADMIN_TOKEN }}
-        run: npx instant-cli push all --skip-check-types
+        run: yes Yes | npx instant-cli push perms --app $INSTANT_APP_ID
