@@ -1,12 +1,12 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@uri/safescript@0.1.14": "0.1.14",
+    "jsr:@uri/safescript@0.1.15": "0.1.15",
     "npm:zod@^3.25.42": "3.25.76"
   },
   "jsr": {
-    "@uri/safescript@0.1.14": {
-      "integrity": "74ebe10f800116b075bffc8016baf3a27e8f866214f01fb681618804754e6c45",
+    "@uri/safescript@0.1.15": {
+      "integrity": "001a369df3bad8d0b95ea02362a730f087f7b75c30be0c973fb40598d71ccab4",
       "dependencies": [
         "npm:zod"
       ]
@@ -19,7 +19,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@uri/safescript@0.1.14"
+      "jsr:@uri/safescript@0.1.15"
     ]
   }
 }
