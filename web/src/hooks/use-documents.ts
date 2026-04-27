@@ -240,7 +240,7 @@ export function useDocuments(identity: StoredIdentity | null) {
   const [error, setError] = useState<string | null>(null);
   const liveSourcesRef = useRef(new Set<string>());
 
-  const queryId = identity?.id || "__none__";
+  const queryId = identity?.id || "00000000-0000-0000-0000-000000000000";
 
   const { data: liveData, isLoading: dbLoading } = db.useQuery({
     accessGrants: {
@@ -477,7 +477,7 @@ export function useDocumentEdits(
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const editsQueryId = documentId || "__none__";
+  const editsQueryId = documentId || "00000000-0000-0000-0000-000000000000";
 
   const { data: liveData } = db.useQuery({
     documents: {
