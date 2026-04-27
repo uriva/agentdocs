@@ -62,8 +62,7 @@ signedGet = (
       "x-identity-id": identityId,
       "x-timestamp": tsStr.text,
       "x-signature": sig.signature
-    },
-    body: ""
+    }
   })
 }
 
