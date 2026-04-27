@@ -195,6 +195,7 @@ export async function addEdit(params: {
   await transact([
     ["update", "edits", editId, {
       encryptedContent: "",
+      encryptedContentIv: "",
       encryptedPatch: params.encryptedPatch,
       encryptedPatchIv: params.encryptedPatchIv,
       signature: params.signature,
