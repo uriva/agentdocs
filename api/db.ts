@@ -132,6 +132,7 @@ export async function createDocument(params: {
   await transact([
     // Create the document
     ["update", "documents", docId, {
+      type: "doc",
       algorithm: params.algorithm,
       encryptedSnapshot: params.encryptedSnapshot,
       encryptedSnapshotIv: params.encryptedSnapshotIv,
@@ -201,6 +202,7 @@ export async function addEdit(params: {
       createdAt: Date.now(),
     }],
     ["update", "documents", params.documentId, {
+      type: "doc",
       encryptedSnapshot: params.encryptedResultingSnapshot,
       encryptedSnapshotIv: params.encryptedResultingSnapshotIv,
       snapshotHash: params.resultingSnapshotHash,
