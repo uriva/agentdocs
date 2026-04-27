@@ -80,20 +80,20 @@ export function IdentitySwitcher({
         }
       />
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger
-          className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          <span
-            className="h-2 w-2 rounded-full bg-foreground shrink-0"
-            aria-hidden
-          />
-          <span className="max-w-[120px] truncate">{active.name}</span>
-          <Badge
-            variant="secondary"
-            className="font-mono text-[10px] px-1.5 py-0"
-          >
-            {fp}
-          </Badge>
+        <DropdownMenuTrigger className="focus-visible:outline-none">
+          <span className="inline-flex items-center h-8 gap-2 px-2.5 font-mono text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+            <span
+              className="h-2 w-2 rounded-full bg-foreground shrink-0"
+              aria-hidden
+            />
+            <span className="max-w-[120px] truncate">{active.name}</span>
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] px-1.5 py-0"
+            >
+              {fp}
+            </Badge>
+          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
