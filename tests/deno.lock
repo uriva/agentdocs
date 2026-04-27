@@ -1,0 +1,25 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@uri/safescript@0.1.7": "0.1.7",
+    "npm:zod@^3.25.42": "3.25.76"
+  },
+  "jsr": {
+    "@uri/safescript@0.1.7": {
+      "integrity": "7f34a0d4ef4fa36962bdd9dcdf067626e750c11f1f7881bb0e3ec82b821313bc",
+      "dependencies": [
+        "npm:zod"
+      ]
+    }
+  },
+  "npm": {
+    "zod@3.25.76": {
+      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@uri/safescript@0.1.7"
+    ]
+  }
+}
