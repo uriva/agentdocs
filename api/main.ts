@@ -35,6 +35,11 @@ app.use(
   }),
 );
 
+app.onError((err, c) => {
+  console.error("[error]", err.message);
+  return c.json({ error: err.message }, 500);
+});
+
 // Health check
 app.get("/health", (c) => c.json({ ok: true }));
 

@@ -22,7 +22,14 @@ function parseBody(
   c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } },
 ) {
   const raw = c.get("rawBody") as string | undefined;
-  return raw ? JSON.parse(raw) : c.req.json();
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      throw new Error("Invalid JSON body");
+    }
+  }
+  return c.req.json();
 }
 
 // ─── Standard CRUD ──────────────────────────────────────────────────────────
