@@ -109,40 +109,44 @@ createDocument = (
   content: string,
   agentdocsIdentity: string
 ): { documentId: string, documentKey: string, status: number, body: string } => {
-  identity = loadIdentity(agentdocsIdentity)
-  docKey = aesGenerateKey()
-  grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
-  snapshot = jsonStringify({ kind: "doc", title: title, content: content })
-  snapshotHash = sha256({ data: snapshot.text })
-  encSnapshot = aesEncrypt({ plaintext: snapshot.text, key: docKey.key })
+   identity = loadIdentity(agentdocsIdentity)
+   docKey = aesGenerateKey()
+   grant = buildGrant(docKey.key, identity.encryptionPrivateKey, identity.encryptionPublicKey)
+   snapshotObj = { kind: "doc", title: title, content: content }
+   snapshot = jsonStringify(snapshotObj)
+   snapshotHash = sha256({ data: snapshot.text })
+   encSnapshot = aesEncrypt({ plaintext: snapshot.text, key: docKey.key })
 
-  // POST /api/documents — creates with encrypted latest snapshot + self grant.
-  createBody = jsonStringify({
-    algorithm: "AES-GCM-256",
-    encryptedSnapshot: encSnapshot.ciphertext,
-    encryptedSnapshotIv: encSnapshot.iv,
-    snapshotHash: snapshotHash.hash,
-    accessGrant: grant
-  })
-  createRes = signedPost("/api/documents", createBody.text, identity.id, identity.signingPrivateKey)
-  parsed = jsonParse({ text: createRes.body })
-  docId = parsed.value.document.id
+   // POST /api/documents — creates with encrypted latest snapshot + self grant.
+   createBodyObj = {
+     algorithm: "AES-GCM-256",
+     encryptedSnapshot: encSnapshot.ciphertext,
+     encryptedSnapshotIv: encSnapshot.iv,
+     snapshotHash: snapshotHash.hash,
+     accessGrant: grant
+   }
+   createBody = jsonStringify(createBodyObj)
+   createRes = signedPost("/api/documents", createBody.text, identity.id, identity.signingPrivateKey)
+   parsed = jsonParse({ text: createRes.body })
+   docId = parsed.value.document.id
 
-  // POST /api/documents/:id/edits — append first patch + checkpoint update.
-  patch = jsonStringify({ type: "replace_snapshot", snapshot: snapshot.text })
-  encPatch = aesEncrypt({ plaintext: patch.text, key: docKey.key })
-  patchSig = ed25519Sign({ data: patch.text, privateKey: identity.signingPrivateKey })
-  editBody = jsonStringify({
-    encryptedPatch: encPatch.ciphertext,
-    encryptedPatchIv: encPatch.iv,
-    signature: patchSig.signature,
-    baseSequenceNumber: 0,
-    sequenceNumber: 1,
-    resultingSnapshotHash: snapshotHash.hash,
-    encryptedResultingSnapshot: encSnapshot.ciphertext,
-    encryptedResultingSnapshotIv: encSnapshot.iv,
-    algorithm: "AES-GCM-256"
-  })
+   // POST /api/documents/:id/edits — append first patch + checkpoint update.
+   patchObj = { type: "replace_snapshot", snapshot: snapshot.text }
+   patch = jsonStringify(patchObj)
+   encPatch = aesEncrypt({ plaintext: patch.text, key: docKey.key })
+   patchSig = ed25519Sign({ data: patch.text, privateKey: identity.signingPrivateKey })
+   editBodyObj = {
+     encryptedPatch: encPatch.ciphertext,
+     encryptedPatchIv: encPatch.iv,
+     signature: patchSig.signature,
+     baseSequenceNumber: 0,
+     sequenceNumber: 1,
+     resultingSnapshotHash: snapshotHash.hash,
+     encryptedResultingSnapshot: encSnapshot.ciphertext,
+     encryptedResultingSnapshotIv: encSnapshot.iv,
+     algorithm: "AES-GCM-256"
+   }
+   editBody = jsonStringify(editBodyObj)
   editPath = stringConcat({ parts: ["/api/documents/", docId, "/edits"] })
   editRes = signedPost(editPath.result, editBody.text, identity.id, identity.signingPrivateKey)
 

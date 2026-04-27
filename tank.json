@@ -1,6 +1,6 @@
 {
   "name": "@uriva/agentdocs",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "repository": "https://github.com/uriva/agentdocs",
   "description": "End-to-end encrypted JSON documents for AI agents — store, retrieve, and share via safescript.",
   "visibility": "public",

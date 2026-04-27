@@ -129,13 +129,14 @@ shareDocument = (
 
   // Wrap the docKey for the grantee + POST the new grant.
   grant = buildGrant(documentKey, identity.encryptionPrivateKey, granteeEncPub)
-  body = jsonStringify({
+  bodyObj = {
     granteeIdentityId: granteeIdentityId,
     encryptedSymmetricKey: grant.encryptedSymmetricKey,
     iv: grant.iv,
     salt: grant.salt,
     algorithm: grant.algorithm
-  })
+  }
+  body = jsonStringify(bodyObj)
   sharePath = stringConcat({ parts: ["/api/documents/", documentId, "/share"] })
   return signedPost(sharePath.result, body.text, identity.id, identity.signingPrivateKey)
 }
