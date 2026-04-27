@@ -16,13 +16,11 @@ const ctx: ExecutionContext = {
 const testPath = new URL("create-document-test.ss", import.meta.url).pathname;
 
 Deno.test(
-  "create-document - override httpRequest",
+  "create-document",
   { ignore: !identity, sanitizeResources: false, sanitizeOps: false },
   async () => {
-    const result = await interpret(program, "testCreateDocument", {
+    await interpret(program, "testCreateDocument", {
       id: identity,
-    }, ctx, undefined, testPath) as { documentId: string; documentKey: string; status: number };
-    if (result.status !== 201) throw new Error(`Expected 201, got ${result.status}`);
-    if (result.documentId !== "mock-doc-id") throw new Error("Expected mock-doc-id");
+    }, ctx, undefined, testPath);
   },
 );

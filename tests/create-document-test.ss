@@ -4,6 +4,9 @@ mockHttpRequest = (host: string, method: string, path: string, headers: { x_time
   return { status: 201, body: "{\"document\":{\"id\":\"mock-doc-id\"}}" }
 }
 
-testCreateDocument = (id: string): { documentId: string, documentKey: string, status: number } => {
-  return override(createDocument, { httpRequest: mockHttpRequest })("Test", "Content", id)
+testCreateDocument = (id: string): { ok: boolean } => {
+  result = override(createDocument, { httpRequest: mockHttpRequest })("Test", "Content", id)
+  assertTrue({ condition: result.status == 201, message: stringConcat({ parts: ["Expected 201, got ", jsonStringify({ value: result.status }).text] }).result })
+  assertTrue({ condition: result.documentId == "mock-doc-id", message: "Expected mock-doc-id" })
+  return { ok: true }
 }
