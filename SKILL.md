@@ -127,6 +127,45 @@ Read the latest snapshot, change `title`, keep everything else, then append:
 Important: preserve fields you are not changing. Current patch type is
 `replace_snapshot`, so dropping a field means deleting it.
 
+## Wiki links between documents
+
+Use one canonical linking convention. Do not invent alternate fields or custom
+markdown syntaxes.
+
+When one document references another document:
+
+1. Add a normal markdown link in `content` using the agentdocs web route:
+   `[Architecture Details](https://agentdocs-nine.vercel.app/app/doc/0b639d84-5998-4e86-8ef9-d1bd4b7c6cce)`
+2. Also add or update a top-level `linkedDocuments` array in the JSON snapshot.
+
+Canonical snapshot shape:
+
+```json
+{
+  "kind": "doc",
+  "title": "Project Context & Wiki Initialization",
+  "content": "See [Architecture Details](https://agentdocs-nine.vercel.app/app/doc/0b639d84-5998-4e86-8ef9-d1bd4b7c6cce).",
+  "linkedDocuments": [
+    {
+      "documentId": "0b639d84-5998-4e86-8ef9-d1bd4b7c6cce",
+      "title": "Architecture Details",
+      "relationship": "related"
+    }
+  ]
+}
+```
+
+Rules:
+
+- `linkedDocuments` is top-level, not inside `content`.
+- Use `documentId`, not `id`, `docId`, `target`, or `href`.
+- Keep `title` as the target document's current human-readable title.
+- Use `relationship` only for a short label like `related`, `parent`, `child`,
+  `source`, or `reference`.
+- Preserve existing `linkedDocuments` entries when adding a new link.
+- If you create the target document, use the `documentId` returned by
+  `createDocument` in both the markdown URL and `linkedDocuments`.
+
 ## JSON-first model (everything is a document)
 
 The platform has one primitive: encrypted document snapshots, with patch-based

@@ -24,6 +24,8 @@ export interface DocumentHeader {
   docKey: string;
 }
 
+export interface DocumentContext extends DocumentHeader {}
+
 interface RawDocument {
   id: string;
   algorithm: string;
@@ -473,6 +475,47 @@ export function useDocuments(identity: StoredIdentity | null) {
   );
 
   return { documents, loading, error, refresh, createDocument };
+}
+
+export function useDocumentContext(
+  documentId: string | null,
+  identity: StoredIdentity | null,
+) {
+  const [document, setDocument] = useState<DocumentContext | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!documentId || !identity) {
+      setDocument(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api<{ document: RawDocument }>(`/documents/${documentId}`, {
+        identity,
+      });
+      const grant = res.document.accessGrants?.find((g) =>
+        g.grantor?.length > 0,
+      );
+      if (!grant) throw new Error("Document key not found for active identity");
+      const header = await decryptDocumentHeader(res.document, grant, identity);
+      if (!header) throw new Error("Failed to decrypt document key");
+      setDocument(header);
+    } catch (err) {
+      setDocument(null);
+      setError(err instanceof Error ? err.message : "Failed to load document");
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId, identity]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { document, loading, error, refresh };
 }
 
 // ─── useDocumentEdits: load/add edits for a specific document ────────────────

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useIdentity } from "@/hooks/use-identity";
-import { useDocumentEdits } from "@/hooks/use-documents";
+import { useDocumentContext, useDocumentEdits } from "@/hooks/use-documents";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,11 @@ interface DocContext {
   title: string;
   docKey: string;
   kind?: string;
+}
+
+function setStoredDocContext(docId: string, ctx: DocContext) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(`agentdocs:doc:${docId}`, JSON.stringify(ctx));
 }
 
 function getDocContext(docId: string): DocContext | null {
@@ -73,6 +78,23 @@ export default function DocPage() {
     const ctx = getDocContext(docId);
     setDocCtx(ctx);
   }, [docId]);
+
+  const {
+    document: loadedDocCtx,
+    loading: loadingDocContext,
+    error: docContextError,
+  } = useDocumentContext(docCtx ? null : docId, active);
+
+  useEffect(() => {
+    if (!loadedDocCtx) return;
+    const next = {
+      title: loadedDocCtx.title,
+      docKey: loadedDocCtx.docKey,
+      kind: loadedDocCtx.kind,
+    };
+    setDocCtx(next);
+    setStoredDocContext(docId, next);
+  }, [loadedDocCtx, docId]);
 
   const { edits, loading, loaded, addEdit } = useDocumentEdits(
     docId,
@@ -117,7 +139,7 @@ export default function DocPage() {
     if (docCtx.title !== initialTitle || docCtx.kind !== docKind) {
       const next = { ...docCtx, title: initialTitle, kind: docKind };
       setDocCtx(next);
-      sessionStorage.setItem(`agentdocs:doc:${docId}`, JSON.stringify(next));
+      setStoredDocContext(docId, next);
     }
   }, [docCtx, initialTitle, docKind, docId]);
 
@@ -147,7 +169,7 @@ export default function DocPage() {
       if (docCtx.title !== title) {
         const next = { ...docCtx, title };
         setDocCtx(next);
-        sessionStorage.setItem(`agentdocs:doc:${docId}`, JSON.stringify(next));
+        setStoredDocContext(docId, next);
       }
       if (editingTitle) setEditingTitle(false);
     } catch (err) {
@@ -186,10 +208,16 @@ export default function DocPage() {
             <div className="h-12 w-12 mx-auto rounded-lg bg-muted/50 border border-border flex items-center justify-center">
               <Lock className="h-5 w-5 text-muted-foreground/50" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Document key not found. Open this document from your documents
-              list.
-            </p>
+            {loadingDocContext ? (
+              <p className="text-sm text-muted-foreground">
+                Loading encrypted document key...
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {docContextError ??
+                  "Document key not found for the active identity."}
+              </p>
+            )}
             <Button
               variant="outline"
               size="sm"
