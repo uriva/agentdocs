@@ -74,20 +74,5 @@ type _AppSchema = typeof _schema;
 interface AppSchema extends _AppSchema {}
 const schema: AppSchema = _schema;
 
-export const permissions = {
-  documents: {
-    allow: { read: "auth != null" },
-  },
-  edits: {
-    allow: { read: "auth != null" },
-  },
-  accessGrants: {
-    allow: { read: "auth != null" },
-  },
-  identities: {
-    allow: { read: "auth != null" },
-  },
-};
-
 export type { AppSchema };
 export default schema;

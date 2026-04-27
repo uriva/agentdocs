@@ -1,13 +1,16 @@
-name: Deploy Tank Skill
+name: Deploy
+
 on:
   push:
     branches:
       - main
-    paths:
-      - tank.json
 
 jobs:
-  deploy:
+  deploy-tank:
+    name: Deploy Tank Skill
+    if: |
+      contains(github.event.head_commit.modified, 'tank.json') ||
+      contains(github.event.head_commit.added, 'tank.json')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +20,25 @@ jobs:
         env:
           TANK_TOKEN: ${{ secrets.TANK_TOKEN }}
         run: tank publish
+
+  push-schema:
+    name: Push InstantDB Schema & Permissions
+    if: |
+      contains(github.event.head_commit.modified, 'web/instant.schema.ts') ||
+      contains(github.event.head_commit.modified, 'web/instant.perms.ts') ||
+      contains(github.event.head_commit.added, 'web/instant.schema.ts') ||
+      contains(github.event.head_commit.added, 'web/instant.perms.ts')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Push schema and permissions
+        env:
+          INSTANT_APP_ID: ${{ secrets.INSTANT_APP_ID }}
+          INSTANT_ADMIN_TOKEN: ${{ secrets.INSTANT_ADMIN_TOKEN }}
+        run: npx instant-cli push all --skip-check-types
