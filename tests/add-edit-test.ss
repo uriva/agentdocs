@@ -10,17 +10,17 @@ testIdentity = (): { bundle: string } => {
 }
 
 mockHttpRequest = (host: string, method: string, path: string, headers: { x_timestamp: string }): { status: number, body: string } => {
-  isEditPath = stringContains({ haystack: path, needle: "/edits" })
-  if (isEditPath) {
-    return { status: 201, body: "{\"edit\":{\"id\":\"mock-edit-id\"}}" }
-  }
-  return { status: 200, body: "{\"document\":{\"id\":\"mock-doc-id\",\"snapshotSequenceNumber\":0}}" }
+  isEditPath = stringIncludes({ haystack: path, needle: "/edits" })
+  status = isEditPath.result ? 201 : 200
+  body = isEditPath.result ? "{\"edit\":{\"id\":\"mock-edit-id\"}}" : "{\"document\":{\"id\":\"mock-doc-id\",\"snapshotSequenceNumber\":0}}"
+  return { status: status, body: body }
 }
 
 testAddEdit = (): { ok: boolean } => {
   id = testIdentity()
+  docKey = aesGenerateKey()
   newSnapshot = jsonStringify({ value: { kind: "doc", title: "Updated", content: "**Hello** from [link](https://example.com)" } })
-  result = override(addEdit, { httpRequest: mockHttpRequest })("mock-doc-id", "mock-key-123", newSnapshot.text, id.bundle)
+  result = override(addEdit, { httpRequest: mockHttpRequest })("mock-doc-id", docKey.key, newSnapshot.text, id.bundle)
   assert({ condition: result.status == 201, message: stringConcat({ parts: ["Expected 201, got ", jsonStringify({ value: result.status }).text] }).result })
   assert({ condition: result.sequenceNumber == 1, message: stringConcat({ parts: ["Expected seq 1, got ", jsonStringify({ value: result.sequenceNumber }).text] }).result })
   return { ok: true }
