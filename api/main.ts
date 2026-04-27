@@ -106,7 +106,10 @@ app.use("/api/*", async (c, next) => {
   // Store identity info and parsed body on context for handlers
   c.set("identityId", identityId);
   c.set("identityKeys", keys);
-  if (body) c.set("rawBody", body);
+  if (body !== undefined) {
+    console.log(`[auth] method=${c.req.method} path=${new URL(c.req.url).pathname} bodyLen=${body.length}`);
+    c.set("rawBody", body);
+  }
 
   await next();
 });
