@@ -16,15 +16,8 @@ export const webhooksRouter = new Hono<AppEnv>();
 function parseBody(
   c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } },
 ) {
-  const raw = c.get("rawBody") as string | undefined;
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      throw new Error("Invalid JSON body");
-    }
-  }
-  return c.req.json();
+  const raw = c.get("rawBody") as string | undefined ?? "";
+  return JSON.parse(raw);
 }
 
 // ─── HMAC Signing ─────────────────────────────────────────────────────────────

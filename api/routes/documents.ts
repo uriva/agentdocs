@@ -19,17 +19,10 @@ export const documentsRouter = new Hono<AppEnv>();
 
 /** Parse the request body (prefer rawBody stored by auth middleware) */
 function parseBody(
-  c: { get: (k: string) => unknown; req: { json: () => Promise<unknown> } },
+  c: { get: (k: string) => unknown },
 ) {
-  const raw = c.get("rawBody") as string | undefined;
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      throw new Error("Invalid JSON body");
-    }
-  }
-  return c.req.json();
+  const raw = c.get("rawBody") as string | undefined ?? "";
+  return JSON.parse(raw);
 }
 
 // ─── Standard CRUD ──────────────────────────────────────────────────────────
