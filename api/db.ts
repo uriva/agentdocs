@@ -356,6 +356,44 @@ export async function getDocumentsForIdentity(
   return Array.from(docMap.values());
 }
 
+export async function deleteAllDocuments(
+  identityId: string,
+): Promise<{ deleted: number }> {
+  const docs = await getDocumentsForIdentity(identityId);
+  const docIds = docs.map((d: any) => d.id as string).filter(Boolean);
+
+  const steps: unknown[] = [];
+
+  // Delete access grants for each document
+  for (const doc of docs) {
+    const grants = (doc as any).accessGrants || [];
+    for (const g of grants) {
+      if (g.id) steps.push(["delete", "accessGrants", g.id, {}]);
+    }
+  }
+
+  // Delete edits for each document
+  const editQueries = await Promise.all(docIds.map((id) =>
+    query({
+      edits: { $: { where: { "document.id": id } } },
+    })
+  ));
+  for (const result of editQueries) {
+    const edits = (result.edits || []) as any[];
+    for (const e of edits) {
+      if (e.id) steps.push(["delete", "edits", e.id, {}]);
+    }
+  }
+
+  // Delete documents
+  for (const docId of docIds) {
+    steps.push(["delete", "documents", docId, {}]);
+  }
+
+  if (steps.length > 0) await transact(steps);
+  return { deleted: docIds.length };
+}
+
 export async function getIdentity(
   identityId: string,
 ): Promise<Record<string, unknown> | null> {

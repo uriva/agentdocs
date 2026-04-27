@@ -3,6 +3,7 @@ import {
   addEdit,
   createAccessGrant,
   createDocument,
+  deleteAllDocuments,
   getDocumentEdits,
   getDocumentForIdentity,
   getDocumentsForIdentity,
@@ -74,6 +75,13 @@ documentsRouter.post("/", async (c) => {
   });
 
   return c.json({ document: doc }, 201);
+});
+
+// Delete all documents accessible by this identity
+documentsRouter.delete("/", async (c) => {
+  const identityId = c.get("identityId") as string;
+  const result = await deleteAllDocuments(identityId);
+  return c.json(result);
 });
 
 // Add an edit to a document
