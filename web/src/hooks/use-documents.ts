@@ -1,9 +1,7 @@
 "use client";
 
-// React hook for document operations
-// Handles encryption/decryption client-side, talks to API for persistence
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import db from "@/lib/db";
 import { api } from "@/lib/api";
 import {
   generateDocumentKey,
@@ -23,7 +21,6 @@ export interface DocumentHeader {
   kind: string;
   title: string;
   createdAt: number;
-  /** Decrypted document symmetric key (in memory only) */
   docKey: string;
 }
 
@@ -42,6 +39,7 @@ interface RawDocument {
     salt: string;
     algorithm: string;
     grantor: Array<{ id: string; encryptionPublicKey: string }>;
+    grantee: Array<{ id: string }>;
   }>;
 }
 
@@ -105,13 +103,35 @@ function snapshotTitle(snapshot: SnapshotLike | null): string {
   return "Untitled Document";
 }
 
+function tryExtractContent(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && typeof parsed.content === "string") {
+      return parsed.content;
+    }
+  } catch {
+    // not JSON
+  }
+  return null;
+}
+
 function snapshotContent(snapshot: SnapshotLike | null, raw: string): string {
-  if (!snapshot) return raw;
+  if (!snapshot) {
+    const extracted = tryExtractContent(raw);
+    if (extracted !== null) return extracted;
+    return raw;
+  }
   const kind = snapshotKind(snapshot);
   if (kind === "spreadsheet") {
     return JSON.stringify(snapshot.data ?? emptySpreadsheet());
   }
-  if (typeof snapshot.content === "string") return snapshot.content;
+  if (typeof snapshot.content === "string") {
+    const inner = tryExtractContent(snapshot.content);
+    if (inner !== null) return inner;
+    return snapshot.content;
+  }
+  const extracted = tryExtractContent(raw);
+  if (extracted !== null) return extracted;
   return raw;
 }
 
@@ -135,12 +155,154 @@ function parsePatchToSnapshot(patchRaw: string): SnapshotLike | null {
   return parseSnapshot(patchRaw);
 }
 
+async function decryptDocumentHeader(
+  doc: { id: string; algorithm: string; encryptedSnapshot: string; encryptedSnapshotIv: string; createdAt: number },
+  grant: { encryptedSymmetricKey: string; iv: string; salt: string; algorithm: string; grantor: Array<{ id: string; encryptionPublicKey: string }> },
+  identity: StoredIdentity,
+): Promise<DocumentHeader | null> {
+  if (!grant.grantor?.[0]) return null;
+
+  try {
+    const docKey = await decryptAccessGrant(
+      {
+        encryptedSymmetricKey: grant.encryptedSymmetricKey,
+        iv: grant.iv,
+        salt: grant.salt,
+        algorithm: typeof grant.algorithm === "string"
+          ? JSON.parse(grant.algorithm)
+          : ALGORITHMS,
+      },
+      identity.keyPair.encryption.privateKey,
+      grant.grantor[0].encryptionPublicKey,
+    );
+
+    const decryptedLatest = await symmetricDecrypt(
+      {
+        ciphertext: doc.encryptedSnapshot,
+        iv: doc.encryptedSnapshotIv,
+        algorithm: doc.algorithm,
+      },
+      docKey,
+    );
+    let title = "Untitled Document";
+    let kind = "doc";
+    const snapshot = parseSnapshot(decryptedLatest);
+    title = snapshotTitle(snapshot);
+    kind = snapshotKind(snapshot);
+
+    return {
+      id: doc.id,
+      kind,
+      title,
+      createdAt: doc.createdAt,
+      docKey,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function decryptEdit(
+  edit: RawEdit,
+  docKey: string,
+): Promise<DocumentEdit | null> {
+  try {
+    const patchRaw = await symmetricDecrypt(
+      {
+        ciphertext: edit.encryptedPatch,
+        iv: edit.encryptedPatchIv,
+        algorithm: edit.algorithm,
+      },
+      docKey,
+    );
+    const snapshot = parsePatchToSnapshot(patchRaw);
+    return {
+      id: edit.id,
+      raw: patchRaw,
+      snapshot: snapshot as Record<string, unknown> | null,
+      content: snapshotContent(snapshot, patchRaw),
+      title: snapshotTitle(snapshot),
+      kind: snapshotKind(snapshot),
+      sequenceNumber: edit.sequenceNumber,
+      createdAt: edit.createdAt,
+      authorId: edit.author?.[0]?.id || "unknown",
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── useDocuments: list documents for the active identity ────────────────────
 
 export function useDocuments(identity: StoredIdentity | null) {
   const [documents, setDocuments] = useState<DocumentHeader[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const liveSourcesRef = useRef(new Set<string>());
+
+  const queryId = identity?.id || "__none__";
+
+  const { data: liveData, isLoading: dbLoading } = db.useQuery({
+    accessGrants: {
+      $: { where: { "grantee.id": queryId } },
+      grantor: {},
+      document: {},
+    },
+  });
+
+  useEffect(() => {
+    if (!identity || !liveData) return;
+    const grantsRaw = (liveData as Record<string, unknown>)?.accessGrants as Array<Record<string, unknown>> | undefined;
+    if (!grantsRaw?.length) return;
+
+    let cancelled = false;
+    (async () => {
+      const decrypted: DocumentHeader[] = [];
+      const processed = new Set<string>();
+
+      for (const grant of grantsRaw) {
+        const doc = (grant.document as Array<Record<string, unknown>>)?.[0];
+        const grantor = (grant.grantor as Array<Record<string, unknown>>) || [];
+        if (!doc || !doc.id) continue;
+
+        const docId = doc.id as string;
+        if (processed.has(docId)) continue;
+        processed.add(docId);
+
+        const header = await decryptDocumentHeader(
+          {
+            id: docId,
+            algorithm: (doc.algorithm as string) || "",
+            encryptedSnapshot: (doc.encryptedSnapshot as string) || "",
+            encryptedSnapshotIv: (doc.encryptedSnapshotIv as string) || "",
+            createdAt: (doc.createdAt as number) || 0,
+          },
+          {
+            encryptedSymmetricKey: (grant.encryptedSymmetricKey as string) || "",
+            iv: (grant.iv as string) || "",
+            salt: (grant.salt as string) || "",
+            algorithm: (grant.algorithm as string) || "",
+            grantor: grantor.map((g) => ({
+              id: (g.id as string) || "",
+              encryptionPublicKey: (g.encryptionPublicKey as string) || "",
+            })),
+          },
+          identity,
+        );
+        if (header) {
+          decrypted.push(header);
+          liveSourcesRef.current.add(header.id);
+        }
+      }
+
+      if (cancelled) return;
+      decrypted.sort((a, b) => b.createdAt - a.createdAt);
+      setDocuments(decrypted);
+      setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [liveData, identity]);
 
   const refresh = useCallback(async () => {
     if (!identity) {
@@ -156,9 +318,8 @@ export function useDocuments(identity: StoredIdentity | null) {
 
       const decrypted: DocumentHeader[] = [];
       for (const doc of res.documents) {
-        // Find the access grant for this identity
+        if (liveSourcesRef.current.has(doc.id)) continue;
         const grant = doc.accessGrants?.find((g: RawDocument["accessGrants"][number]) =>
-          // We need to decrypt the doc key using the grantor's public key
           g.grantor?.length > 0,
         );
         if (!grant || !grant.grantor?.[0]) continue;
@@ -169,7 +330,9 @@ export function useDocuments(identity: StoredIdentity | null) {
               encryptedSymmetricKey: grant.encryptedSymmetricKey,
               iv: grant.iv,
               salt: grant.salt,
-              algorithm: ALGORITHMS,
+              algorithm: typeof grant.algorithm === "string"
+                ? JSON.parse(grant.algorithm)
+                : ALGORITHMS,
             },
             identity.keyPair.encryption.privateKey,
             grant.grantor[0].encryptionPublicKey,
@@ -201,8 +364,21 @@ export function useDocuments(identity: StoredIdentity | null) {
         }
       }
 
+      if (decrypted.length === 0) {
+        setLoading(false);
+        return;
+      }
+
       decrypted.sort((a, b) => b.createdAt - a.createdAt);
-      setDocuments(decrypted);
+      setDocuments((prev) => {
+        const existingIds = new Set(prev.map((d) => d.id));
+        const merged = [...prev];
+        for (const d of decrypted) {
+          if (!existingIds.has(d.id)) merged.push(d);
+        }
+        merged.sort((a, b) => b.createdAt - a.createdAt);
+        return merged;
+      });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load documents",
@@ -220,7 +396,6 @@ export function useDocuments(identity: StoredIdentity | null) {
     async (title: string, kind: "doc" | "spreadsheet" = "doc") => {
       if (!identity) throw new Error("No active identity");
 
-      // 1. Generate doc symmetric key
       const docKey = await generateDocumentKey();
 
       const initialSnapshot =
@@ -228,18 +403,15 @@ export function useDocuments(identity: StoredIdentity | null) {
           ? JSON.stringify({ kind: "spreadsheet", title, data: emptySpreadsheet() })
           : JSON.stringify({ kind: "doc", title, content: "" });
 
-      // 2. Encrypt snapshot and hash it
       const encSnapshot = await symmetricEncrypt(initialSnapshot, docKey);
       const initialHash = await sha256Text(initialSnapshot);
 
-      // 3. Create access grant for ourselves (self-grant)
       const grant = await cryptoCreateAccessGrant(
         docKey,
         identity.keyPair.encryption.privateKey,
         identity.keyPair.encryption.publicKey,
       );
 
-      // 4. Send to API
       const res = await api<{ document: { id: string } }>("/documents", {
         method: "POST",
         identity,
@@ -305,6 +477,66 @@ export function useDocumentEdits(
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const editsQueryId = documentId || "__none__";
+
+  const { data: liveData } = db.useQuery({
+    documents: {
+      $: { where: { id: editsQueryId } },
+      edits: {
+        $: { order: { sequenceNumber: "asc" as const } },
+        author: {},
+      },
+    },
+  });
+  const liveEditsProcessed = useRef(false);
+
+  useEffect(() => {
+    liveEditsProcessed.current = false;
+  }, [documentId]);
+
+  useEffect(() => {
+    if (!documentId || !docKey || !identity) return;
+    if (!liveData) return;
+
+    const docs = (liveData as Record<string, unknown>)?.documents as Array<Record<string, unknown>> | undefined;
+    if (!docs?.length) return;
+
+    const doc = docs[0];
+    const editsRaw = (doc.edits as Array<Record<string, unknown>>) || [];
+    if (!editsRaw.length) return;
+
+    let cancelled = false;
+    (async () => {
+      const decrypted: DocumentEdit[] = [];
+      for (const edit of editsRaw) {
+        const result = await decryptEdit(
+          {
+            id: edit.id as string,
+            encryptedPatch: edit.encryptedPatch as string,
+            encryptedPatchIv: edit.encryptedPatchIv as string,
+            algorithm: edit.algorithm as string,
+            signature: edit.signature as string,
+            baseSequenceNumber: edit.baseSequenceNumber as number,
+            resultingSnapshotHash: edit.resultingSnapshotHash as string,
+            sequenceNumber: edit.sequenceNumber as number,
+            createdAt: edit.createdAt as number,
+            author: (edit.author as Array<{ id: string }>) || [],
+          },
+          docKey,
+        );
+        if (result) decrypted.push(result);
+      }
+      if (cancelled) return;
+      decrypted.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+      setEdits(decrypted);
+      setLoaded(true);
+      setLoading(false);
+      liveEditsProcessed.current = true;
+    })();
+
+    return () => { cancelled = true; };
+  }, [liveData, documentId, docKey, identity]);
+
   const refresh = useCallback(async () => {
     if (!documentId || !docKey || !identity) {
       setEdits([]);
@@ -320,30 +552,8 @@ export function useDocumentEdits(
 
       const decrypted: DocumentEdit[] = [];
       for (const edit of res.edits) {
-        try {
-          const patchRaw = await symmetricDecrypt(
-            {
-              ciphertext: edit.encryptedPatch,
-              iv: edit.encryptedPatchIv,
-              algorithm: edit.algorithm,
-            },
-            docKey,
-          );
-          const snapshot = parsePatchToSnapshot(patchRaw);
-          decrypted.push({
-            id: edit.id,
-            raw: patchRaw,
-            snapshot: snapshot as Record<string, unknown> | null,
-            content: snapshotContent(snapshot, patchRaw),
-            title: snapshotTitle(snapshot),
-            kind: snapshotKind(snapshot),
-            sequenceNumber: edit.sequenceNumber,
-            createdAt: edit.createdAt,
-            authorId: edit.author?.[0]?.id || "unknown",
-          });
-        } catch {
-          continue;
-        }
+        const result = await decryptEdit(edit, docKey);
+        if (result) decrypted.push(result);
       }
 
       decrypted.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
@@ -381,7 +591,6 @@ export function useDocumentEdits(
       const encryptedPatch = await symmetricEncrypt(patch, docKey);
       const encryptedSnapshot = await symmetricEncrypt(newSnapshotJson, docKey);
 
-      // Sign plaintext patch
       const signatureData = new TextEncoder().encode(patch);
       const signature = await sign(
         signatureData,

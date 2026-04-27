@@ -100,7 +100,16 @@ export default function DocPage() {
     return deserializeSpreadsheet(latest.content);
   }, [isSpreadsheet, latest]);
 
-  const content = userEdited ? userContent : initialContent;
+  const content = (() => {
+    const raw = userEdited ? userContent : initialContent;
+    if (raw && raw.startsWith("{") && raw.includes('"content"')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.content === "string") return parsed.content;
+      } catch {}
+    }
+    return raw;
+  })();
   const sheetData = userSheetData ?? initialSheetData;
 
   useEffect(() => {
