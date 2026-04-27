@@ -133,6 +133,7 @@ export async function createDocument(params: {
     // Create the document
     ["update", "documents", docId, {
       type: "doc",
+      encryptedTitle: "",
       encryptedTitleIv: "",
       algorithm: params.algorithm,
       encryptedSnapshot: params.encryptedSnapshot,
@@ -204,6 +205,7 @@ export async function addEdit(params: {
     }],
     ["update", "documents", params.documentId, {
       type: "doc",
+      encryptedTitle: "",
       encryptedTitleIv: "",
       encryptedSnapshot: params.encryptedResultingSnapshot,
       encryptedSnapshotIv: params.encryptedResultingSnapshotIv,
