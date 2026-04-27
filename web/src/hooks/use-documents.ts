@@ -76,6 +76,15 @@ type SnapshotLike = {
   data?: SpreadsheetData;
 };
 
+function parseGrantAlgorithm(algorithm: string) {
+  try {
+    const parsed = JSON.parse(algorithm);
+    return parsed && typeof parsed === "object" ? parsed : ALGORITHMS;
+  } catch {
+    return ALGORITHMS;
+  }
+}
+
 function parseSnapshot(raw: string): SnapshotLike | null {
   try {
     const parsed = JSON.parse(raw);
@@ -168,9 +177,7 @@ async function decryptDocumentHeader(
         encryptedSymmetricKey: grant.encryptedSymmetricKey,
         iv: grant.iv,
         salt: grant.salt,
-        algorithm: typeof grant.algorithm === "string"
-          ? JSON.parse(grant.algorithm)
-          : ALGORITHMS,
+        algorithm: parseGrantAlgorithm(grant.algorithm),
       },
       identity.keyPair.encryption.privateKey,
       grant.grantor[0].encryptionPublicKey,
@@ -335,9 +342,7 @@ export function useDocuments(identity: StoredIdentity | null) {
               encryptedSymmetricKey: grant.encryptedSymmetricKey,
               iv: grant.iv,
               salt: grant.salt,
-              algorithm: typeof grant.algorithm === "string"
-                ? JSON.parse(grant.algorithm)
-                : ALGORITHMS,
+              algorithm: parseGrantAlgorithm(grant.algorithm),
             },
             identity.keyPair.encryption.privateKey,
             grant.grantor[0].encryptionPublicKey,
