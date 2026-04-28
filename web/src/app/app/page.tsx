@@ -95,14 +95,19 @@ function AppShell() {
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              title="Back to landing page"
+            >
               <div className="h-5 w-5 rounded bg-foreground flex items-center justify-center">
                 <Lock className="h-3 w-3 text-background" />
               </div>
               <span className="text-sm font-semibold tracking-tight">
                 agentdocs
               </span>
-            </div>
+            </button>
             <span className="text-[10px] font-mono text-muted-foreground/60 hidden sm:inline">
               e2ee
             </span>
