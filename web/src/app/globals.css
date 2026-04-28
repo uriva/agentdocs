@@ -132,6 +132,9 @@
   html {
     @apply font-sans;
   }
+  :where(a, button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], summary, label[for], select):not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 /* Landing page animations */
