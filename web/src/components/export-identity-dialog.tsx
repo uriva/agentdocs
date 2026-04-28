@@ -35,7 +35,7 @@ export function ExportIdentityDialog({
 
   const shareLink = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return `${window.location.origin}/#import/${exportString}`;
+    return `${window.location.origin}/app#import/${exportString}`;
   }, [exportString]);
 
   function handleCopy(type: "key" | "link") {

@@ -41,6 +41,12 @@ function useInView(threshold = 0.15): [RefObject<HTMLElement | null>, boolean] {
 }
 
 export default function Home() {
+  useEffect(() => {
+    if (window.location.hash.startsWith("#import/")) {
+      window.location.replace(`/app${window.location.hash}`);
+    }
+  }, []);
+
   return <LandingPage />;
 }
 
