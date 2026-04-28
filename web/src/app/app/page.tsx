@@ -93,8 +93,8 @@ function AppShell() {
   return (
     <div className="grain flex flex-col flex-1">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => router.push("/")}
@@ -113,7 +113,7 @@ function AppShell() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 shrink items-center gap-2 overflow-x-auto">
             <ThemeToggle />
             {!loading && (
               <IdentitySwitcher
@@ -304,8 +304,8 @@ function DocumentsView({
   return (
     <div className="flex-1 flex flex-col">
       <div className="border-b">
-        <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex min-h-12 max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <div className="flex shrink-0 items-center gap-3">
             <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Documents
             </h2>
@@ -313,7 +313,7 @@ function DocumentsView({
               <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/30 border-t-transparent" />
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
             <Button
               variant="ghost"
               size="sm"
@@ -382,7 +382,7 @@ function DocumentsView({
           </div>
         </div>
       ) : (
-        <div className="mx-auto w-full max-w-6xl px-6 py-4">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6">
           <div className="space-y-1">
             {documents.map((doc) => (
               <button

@@ -243,8 +243,8 @@ export default function DocPage() {
   return (
     <div className="grain flex flex-col flex-1">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
@@ -253,7 +253,7 @@ export default function DocPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               {isSpreadsheet ? (
                 <Table2 className="h-4 w-4 text-muted-foreground/60" />
               ) : (
@@ -295,7 +295,7 @@ export default function DocPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
             {!isSpreadsheet && (
               <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
                 <button
@@ -377,7 +377,7 @@ export default function DocPage() {
               <SpreadsheetEditor data={sheetData} onChange={handleSheetChange} />
             </div>
           ) : mode === "edit" ? (
-            <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-6">
+            <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-4 sm:px-6">
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -388,7 +388,7 @@ export default function DocPage() {
               />
             </div>
           ) : (
-            <div className="flex-1 mx-auto w-full max-w-3xl px-6 py-6 overflow-auto">
+            <div className="flex-1 mx-auto w-full max-w-3xl px-4 py-6 overflow-auto sm:px-6">
               {content.trim() ? (
                 <div className="prose-agentdocs">
                   <ReactMarkdown
@@ -435,7 +435,7 @@ export default function DocPage() {
       </div>
 
       <footer className="border-t">
-        <div className="mx-auto flex h-8 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-8 max-w-6xl items-center justify-between px-4 sm:px-6">
           <span className="text-[10px] font-mono text-muted-foreground/40">
             {isSpreadsheet
               ? `${Object.keys(sheetData.cells).length} cells`

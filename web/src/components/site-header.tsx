@@ -153,7 +153,7 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
       <div
-        className={`mx-auto flex h-14 items-center justify-between px-6 ${maxWidth}`}
+        className={`mx-auto flex min-h-14 items-center justify-between gap-3 px-4 py-2 sm:px-6 ${maxWidth}`}
       >
         <a href="/" className="flex items-center gap-2">
           <div className="h-5 w-5 rounded bg-foreground flex items-center justify-center">
@@ -163,7 +163,7 @@ export function SiteHeader({
             agentdocs
           </span>
         </a>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto sm:gap-3">
           <a
             href="https://github.com/uriva/agentdocs"
             target="_blank"
