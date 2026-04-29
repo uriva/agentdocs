@@ -12,7 +12,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
-import { CodeBlock } from "@/components/code-block";
+
 import { SiteHeader, SignInButton } from "@/components/site-header";
 
 /* ── Scroll-triggered animation hook ─────────────────────────────── */
@@ -125,84 +125,33 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* Code example — wiki upsert (the most distinctive API) */}
+          {/* API overview */}
           <div className="animate-code-reveal delay-5 mt-16 rounded-lg border bg-card overflow-hidden">
-            <div className="flex items-center gap-2 border-b px-4 py-2.5">
-              <div className="flex gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20" />
-                <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20" />
-                <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20" />
-              </div>
-              <span className="text-[10px] font-mono text-muted-foreground/50 ml-2">
-                agent.ts
-              </span>
+            <div className="border-b px-4 py-2.5">
+              <span className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-wider">REST API</span>
             </div>
-            <CodeBlock
-              code={`// Documents: create an encrypted page
-const res = await fetch("/api/documents", {
-  method: "POST",
-  headers: signedHeaders(identity),
-  body: JSON.stringify({
-    encryptedSnapshot: await encrypt(JSON.stringify({
-      kind: "doc",
-      title: "Architecture Overview",
-      content: markdown
-    }), key),
-    encryptedSnapshotIv: iv,
-    snapshotHash: await sha256Base64url("..."),
-    algorithm: "AES-GCM-256",
-    accessGrant,
-  })
-});
-const { document } = await res.json();
-
-// Append an encrypted patch + checkpoint update
-await fetch(\`/api/documents/\${document.id}/edits\`, {
-  method: "POST",
-  headers: signedHeaders(identity),
-  body: JSON.stringify({
-    encryptedPatch: await encrypt(JSON.stringify({
-      type: "replace_snapshot",
-      snapshot: JSON.stringify({ kind: "doc", title: "Architecture Overview", content: markdown })
-    }), key),
-    encryptedPatchIv: iv,
-    baseSequenceNumber: 0,
-    sequenceNumber: 1,
-    resultingSnapshotHash: await sha256Base64url("..."),
-    encryptedResultingSnapshot: await encrypt(JSON.stringify({ kind: "doc", title: "Architecture Overview", content: markdown }), key),
-    encryptedResultingSnapshotIv: iv,
-    signature: await sign("...", identity),
-    algorithm: "AES-GCM-256",
-  })
-});
-
-// Ticket convention: same docs API, different JSON shape
-await fetch("/api/documents/" + document.id + "/edits", {
-  method: "POST",
-  headers: signedHeaders(identity),
-  body: JSON.stringify({
-    encryptedPatch: await encrypt(JSON.stringify({
-      type: "replace_snapshot",
-      snapshot: JSON.stringify({
-        kind: "ticket",
-        title: "Fix auth timeout",
-        status: "open",
-        priority: "high",
-        content: details
-      })
-    }), key),
-    encryptedPatchIv: iv,
-    baseSequenceNumber: 1,
-    sequenceNumber: 2,
-    resultingSnapshotHash: await sha256Base64url("..."),
-    encryptedResultingSnapshot: await encrypt("...", key),
-    encryptedResultingSnapshotIv: iv,
-    signature: await sign("...", identity),
-    algorithm: "AES-GCM-256",
-  })
-});`}
-            />
+            <div className="divide-y divide-border text-xs">
+              {[
+                ["POST /api/documents", "Create an encrypted document with a self access grant"],
+                ["GET  /api/documents", "List all documents accessible by your identity"],
+                ["GET  /api/documents/:id", "Get a single document with its access grant"],
+                ["POST /api/documents/:id/edits", "Append an encrypted patch + update the checkpoint snapshot"],
+                ["GET  /api/documents/:id/edits", "List the edit history for a document"],
+                ["POST /api/documents/:id/share", "Grant another identity access to a document"],
+                ["GET  /api/identities/:id", "Look up an identity's public keys by ID"],
+              ].map(([method, desc]) => (
+                <div key={method} className="flex items-start gap-3 px-4 py-2.5">
+                  <code className="shrink-0 text-[10px] font-mono text-foreground/80">{method}</code>
+                  <span className="text-muted-foreground leading-relaxed">{desc}</span>
+                </div>
+              ))}
+            </div>
           </div>
+          <p className="mt-4 text-[10px] font-mono text-muted-foreground/50 text-center">
+            Prefer not to build your own client? Install the{" "}
+            <code className="bg-muted px-1 rounded text-[10px]">agentdocs</code>{" "}
+            skill from the Tank registry with safescript scripts for every endpoint.
+          </p>
         </section>
 
         {/* The Problem */}
