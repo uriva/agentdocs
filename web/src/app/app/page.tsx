@@ -19,6 +19,7 @@ import {
   Table2,
   Download,
   LogOut,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { importIdentity } from "@/lib/crypto";
@@ -237,17 +238,17 @@ function DocumentsView({
   onRefresh: () => Promise<void>;
   onCreateDocument: (
     title: string,
-    kind?: "doc" | "spreadsheet",
+    kind?: "doc" | "spreadsheet" | "contact",
   ) => Promise<string>;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
 
-  async function handleCreate(kind: "doc" | "spreadsheet" = "doc") {
+  async function handleCreate(kind: "doc" | "spreadsheet" | "contact" = "doc") {
     setCreating(true);
     try {
       const title =
-        kind === "doc" ? "Untitled Document" : "Untitled Spreadsheet";
+        kind === "doc" ? "Untitled Document" : kind === "contact" ? "New Contact" : "Untitled Spreadsheet";
       const docId = await onCreateDocument(title, kind);
       const doc = documents.find((d) => d.id === docId);
       if (typeof window !== "undefined") {
@@ -352,6 +353,16 @@ function DocumentsView({
               <Table2 className="h-3.5 w-3.5" />
               New Sheet
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => handleCreate("contact")}
+              disabled={creating}
+            >
+              <User className="h-3.5 w-3.5" />
+              New Contact
+            </Button>
           </div>
         </div>
       </div>
@@ -392,10 +403,12 @@ function DocumentsView({
               >
                 <div className="h-8 w-8 rounded-md bg-muted/60 border border-border flex items-center justify-center shrink-0 group-hover:border-foreground/30 group-hover:bg-foreground/5 transition-colors">
                   {doc.kind === "spreadsheet" ? (
-                    <Table2 className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
-                  ) : (
-                    <FileText className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
-                  )}
+  <Table2 className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
+) : doc.kind === "contact" ? (
+  <User className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
+) : (
+  <FileText className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground/70 transition-colors" />
+)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{doc.title}</p>

@@ -136,6 +136,9 @@ function snapshotContent(snapshot: SnapshotLike | null, raw: string): string {
   if (kind === "spreadsheet") {
     return JSON.stringify(snapshot.data ?? emptySpreadsheet());
   }
+  if (kind === "contact") {
+    return raw;
+  }
   if (typeof snapshot.content === "string") {
     const inner = tryExtractContent(snapshot.content);
     if (inner !== null) return inner;
@@ -405,7 +408,7 @@ export function useDocuments(identity: StoredIdentity | null) {
   }, [refresh]);
 
   const createDocument = useCallback(
-    async (title: string, kind: "doc" | "spreadsheet" = "doc") => {
+    async (title: string, kind: "doc" | "spreadsheet" | "contact" = "doc") => {
       if (!identity) throw new Error("No active identity");
 
       const docKey = await generateDocumentKey();
@@ -413,6 +416,8 @@ export function useDocuments(identity: StoredIdentity | null) {
       const initialSnapshot =
         kind === "spreadsheet"
           ? JSON.stringify({ kind: "spreadsheet", title, data: emptySpreadsheet() })
+          : kind === "contact"
+          ? JSON.stringify({ kind: "contact", title, content: "", contactDetails: {} })
           : JSON.stringify({ kind: "doc", title, content: "" });
 
       const encSnapshot = await symmetricEncrypt(initialSnapshot, docKey);

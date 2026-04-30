@@ -16,6 +16,7 @@ import {
   History,
   Eye,
   Pencil,
+  User,
 } from "lucide-react";
 import { ShareDialog } from "@/components/share-dialog";
 import { SpreadsheetEditor } from "@/components/spreadsheet-editor";
@@ -115,6 +116,7 @@ export default function DocPage() {
 
   const docKind = latest?.kind ?? docCtx?.kind ?? "doc";
   const isSpreadsheet = docKind === "spreadsheet";
+  const isContact = docKind === "contact";
 
   const initialTitle = latest?.title ?? docCtx?.title ?? "Untitled Document";
   const initialContent = useMemo(() => {
@@ -165,6 +167,8 @@ export default function DocPage() {
     const snapshot =
       isSpreadsheet
         ? JSON.stringify({ kind: "spreadsheet", title, data: sheetData })
+        : isContact
+        ? JSON.stringify({ kind: "contact", title, content })
         : JSON.stringify({ kind: "doc", title, content });
     setSaving(true);
     try {
@@ -238,7 +242,7 @@ export default function DocPage() {
     );
   }
 
-  const canSave = isSpreadsheet || content.trim().length > 0;
+  const canSave = isSpreadsheet || isContact || content.trim().length > 0;
 
   return (
     <div className="grain flex flex-col flex-1">
@@ -256,6 +260,8 @@ export default function DocPage() {
             <div className="flex min-w-0 items-center gap-2">
               {isSpreadsheet ? (
                 <Table2 className="h-4 w-4 text-muted-foreground/60" />
+              ) : isContact ? (
+                <User className="h-4 w-4 text-muted-foreground/60" />
               ) : (
                 <FileText className="h-4 w-4 text-muted-foreground/60" />
               )}
@@ -439,6 +445,8 @@ export default function DocPage() {
           <span className="text-[10px] font-mono text-muted-foreground/40">
             {isSpreadsheet
               ? `${Object.keys(sheetData.cells).length} cells`
+              : isContact
+              ? `${content.length} chars (contact)`
               : `${content.length} chars`}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground/40">
