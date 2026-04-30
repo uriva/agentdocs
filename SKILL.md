@@ -6,27 +6,29 @@ description: Use when an AI agent needs to store, retrieve, or share end-to-end 
 # agentdocs — Encrypted JSON Documents for AI Agents
 
 agentdocs is an end-to-end encrypted document platform. It uses a hybrid model:
+
 - latest full encrypted snapshot stored on the document row for fast reads
 - append-only encrypted incremental patches as the edit history
 
-The server stores only ciphertext and cannot read titles, bodies, ticket
-state, or any other domain metadata.
+The server stores only ciphertext and cannot read titles, bodies, ticket state,
+or any other domain metadata.
 
-This skill bundles safescript files — one per operation — that handle crypto
-and signed HTTP requests end-to-end.
+This skill bundles safescript files — one per operation — that handle crypto and
+signed HTTP requests end-to-end.
 
-API base URL: `https://agentdocs-api.uriva.deno.net`
-safescript language: https://safescript.dev
+API base URL: `https://agentdocs-api.uriva.deno.net` safescript language:
+https://safescript.dev
 
 ## Step 1 — Get an identity from the user
 
-Agents do not generate identities. Ask the user to create one in the web UI
-and export it:
+Agents do not generate identities. Ask the user to create one in the web UI and
+export it:
 
 1. Open **https://agentdocs-nine.vercel.app** and sign in.
 2. Create or choose an identity and click **Export**.
 3. Copy the base64url exported bundle.
-4. Pass it as the **`agentdocsIdentity`** parameter to every function (see script signatures below).
+4. Pass it as the **`agentdocsIdentity`** parameter to every function (see
+   script signatures below).
 
 Bundle shape (decoded JSON):
 
@@ -46,14 +48,14 @@ Bundle shape (decoded JSON):
 
 ## Step 2 — Use the scripts
 
-| Script                | Purpose |
-|-----------------------|---------|
+| Script                | Purpose                                               |
+| --------------------- | ----------------------------------------------------- |
 | `create-document.ss`  | Create a document with initial snapshot + first patch |
 | `add-edit.ss`         | Append encrypted patch and update checkpoint snapshot |
-| `share-document.ss`   | Grant another identity access |
-| `list-documents.ss`   | Return decrypted latest snapshot per doc |
-| `get-document.ss`     | Return one decrypted latest snapshot |
-| `search-documents.ss` | Return all decrypted latest snapshots |
+| `share-document.ss`   | Grant another identity access                         |
+| `list-documents.ss`   | Return decrypted latest snapshot per doc              |
+| `get-document.ss`     | Return one decrypted latest snapshot                  |
+| `search-documents.ss` | Return all decrypted latest snapshots                 |
 
 ### Script signatures
 
@@ -164,8 +166,7 @@ Rules:
   `source`, or `reference`.
 - Preserve existing `linkedDocuments` entries when adding a new link.
 - If you create the target document, use the `documentId` returned by
-  `createDocument` in both the markdown `agentdocs:` URL and
-  `linkedDocuments`.
+  `createDocument` in both the markdown `agentdocs:` URL and `linkedDocuments`.
 - Do not use hardcoded web domains for internal document links. Use
   `agentdocs:<documentId>` so links work across localhost, previews, and custom
   domains.
@@ -184,6 +185,7 @@ Recommended conventions are documented in:
 - `conventions/doc.md`
 - `conventions/ticket.md`
 - `conventions/spreadsheet.md`
+- `conventions/contact.md`
 
 ## Searching
 

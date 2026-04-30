@@ -99,7 +99,9 @@ export const ListDocumentsResponse = z.object({
     algorithm,
     encryptedSnapshot: encrypted,
     encryptedSnapshotIv: iv,
-    snapshotHash: z.string().describe("SHA-256 hash of latest plaintext snapshot"),
+    snapshotHash: z.string().describe(
+      "SHA-256 hash of latest plaintext snapshot",
+    ),
     snapshotSequenceNumber: z.number().describe(
       "Sequence number of latest encrypted snapshot",
     ),
@@ -113,7 +115,9 @@ export const GetDocumentResponse = z.object({
     algorithm,
     encryptedSnapshot: encrypted,
     encryptedSnapshotIv: iv,
-    snapshotHash: z.string().describe("SHA-256 hash of latest plaintext snapshot"),
+    snapshotHash: z.string().describe(
+      "SHA-256 hash of latest plaintext snapshot",
+    ),
     snapshotSequenceNumber: z.number().describe(
       "Sequence number of latest encrypted snapshot",
     ),
@@ -128,7 +132,9 @@ export const CreateDocumentRequest = z.object({
   algorithm,
   encryptedSnapshot: encrypted.describe("Encrypted initial full JSON snapshot"),
   encryptedSnapshotIv: iv.describe("IV for the encrypted initial snapshot"),
-  snapshotHash: z.string().describe("SHA-256 hash of initial plaintext snapshot"),
+  snapshotHash: z.string().describe(
+    "SHA-256 hash of initial plaintext snapshot",
+  ),
   accessGrant: AccessGrantInput.describe("Access grant for the creator"),
 }).describe("Create a new encrypted document");
 

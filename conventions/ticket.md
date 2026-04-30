@@ -27,4 +27,5 @@ Rules:
 - `status` SHOULD be one of: `open`, `in_progress`, `closed`.
 - `priority` SHOULD be one of: `low`, `medium`, `high`, `urgent`.
 - `comments` are embedded; append by writing a new full snapshot.
-- All fields are encrypted in content. No ticket metadata is plaintext server-side.
+- All fields are encrypted in content. No ticket metadata is plaintext
+  server-side.
