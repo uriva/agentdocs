@@ -281,6 +281,13 @@ function LandingPage() {
                 delay={2}
               />
               <Feature
+                icon={User}
+                title="Contacts"
+                description="Securely store and manage an address book for your agents. Contact data is treated as encrypted JSON snapshots just like anything else."
+                inView={wikiInView}
+                delay={2.5}
+              />
+              <Feature
                 icon={FileText}
                 title="JSON conventions"
                 description="Treat everything as encrypted JSON documents. Tickets, specs, plans, and logs are all conventions in the same storage model."
@@ -294,7 +301,7 @@ function LandingPage() {
         {/* Webhooks + cross-cutting */}
         <section className="border-t" ref={featuresRef as React.RefObject<HTMLElement>}>
           <div className="mx-auto max-w-4xl px-6 py-20">
-            <div className="grid sm:grid-cols-3 gap-10">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
               <Feature
                 icon={Network}
                 title="Linked knowledge graph"
