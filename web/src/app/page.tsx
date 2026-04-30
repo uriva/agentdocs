@@ -10,6 +10,7 @@ import {
   FileText,
   Table2,
   Webhook,
+  User,
 } from "lucide-react";
 import { useState, useEffect, useRef, type RefObject } from "react";
 
