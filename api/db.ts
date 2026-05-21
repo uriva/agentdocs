@@ -394,6 +394,42 @@ export async function deleteAllDocuments(
   return { deleted: docIds.length };
 }
 
+export async function deleteDocument(
+  documentId: string,
+  identityId: string,
+): Promise<{ success: boolean; deleted: number } | null> {
+  const doc = await getDocumentForIdentity(documentId, identityId);
+  if (!doc) return null;
+
+  const steps: unknown[] = [];
+
+  // Query all access grants for this document
+  const grantQuery = await query({
+    accessGrants: {
+      $: { where: { "document.id": documentId } },
+    },
+  });
+  const grants = (grantQuery.accessGrants || []) as any[];
+  for (const g of grants) {
+    if (g.id) steps.push(["delete", "accessGrants", g.id, {}]);
+  }
+
+  // Query all edits for this document
+  const editQuery = await query({
+    edits: { $: { where: { "document.id": documentId } } },
+  });
+  const edits = (editQuery.edits || []) as any[];
+  for (const e of edits) {
+    if (e.id) steps.push(["delete", "edits", e.id, {}]);
+  }
+
+  // Delete the document itself
+  steps.push(["delete", "documents", documentId, {}]);
+
+  if (steps.length > 0) await transact(steps);
+  return { success: true, deleted: 1 };
+}
+
 export async function getIdentity(
   identityId: string,
 ): Promise<Record<string, unknown> | null> {

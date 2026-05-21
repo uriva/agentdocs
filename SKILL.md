@@ -56,6 +56,7 @@ Bundle shape (decoded JSON):
 | `list-documents.ss`   | Return decrypted latest snapshot per doc              |
 | `get-document.ss`     | Return one decrypted latest snapshot                  |
 | `search-documents.ss` | Return all decrypted latest snapshots                 |
+| `delete-document.ss`  | Delete a single document by ID                        |
 
 ### Script signatures
 
@@ -77,6 +78,9 @@ getDocument(documentId: string, agentdocsIdentity: string)
 
 searchDocuments(agentdocsIdentity: string)
   -> { documents: [{ documentId, kind, title, content, documentKey }] }
+
+deleteDocument(documentId: string, agentdocsIdentity: string)
+  -> { success: boolean, deleted: number }
 ```
 
 ## How agents should modify documents

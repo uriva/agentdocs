@@ -4,6 +4,7 @@ import {
   createAccessGrant,
   createDocument,
   deleteAllDocuments,
+  deleteDocument,
   getDocumentEdits,
   getDocumentForIdentity,
   getDocumentsForIdentity,
@@ -81,6 +82,18 @@ documentsRouter.post("/", async (c) => {
 documentsRouter.delete("/", async (c) => {
   const identityId = c.get("identityId") as string;
   const result = await deleteAllDocuments(identityId);
+  return c.json(result);
+});
+
+// Delete a single document by ID
+documentsRouter.delete("/:id", async (c) => {
+  const identityId = c.get("identityId") as string;
+  const documentId = c.req.param("id");
+  const result = await deleteDocument(documentId, identityId);
+  if (!result) return c.json({ error: "not found or not authorized" }, 404);
+
+  fireWebhooks("document", documentId, "document.deleted", identityId, {});
+
   return c.json(result);
 });
 
