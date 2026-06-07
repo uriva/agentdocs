@@ -301,7 +301,7 @@ export default function DocPage() {
             </div>
           </div>
 
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden">
             {!isSpreadsheet && (
               <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
                 <button

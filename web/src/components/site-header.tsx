@@ -163,7 +163,7 @@ export function SiteHeader({
             agentdocs
           </span>
         </a>
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden sm:gap-3">
           <a
             href="https://github.com/uriva/agentdocs"
             target="_blank"

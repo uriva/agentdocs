@@ -114,7 +114,7 @@ function AppShell() {
             </span>
           </div>
 
-          <div className="flex min-w-0 shrink items-center gap-2 overflow-x-auto">
+          <div className="flex min-w-0 shrink items-center gap-2 overflow-x-auto overflow-y-hidden">
             <ThemeToggle />
             {!loading && (
               <IdentitySwitcher
@@ -314,7 +314,7 @@ function DocumentsView({
               <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/30 border-t-transparent" />
             )}
           </div>
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden">
             <Button
               variant="ghost"
               size="sm"
