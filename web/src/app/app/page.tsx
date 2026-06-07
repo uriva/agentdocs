@@ -114,7 +114,7 @@ function AppShell() {
             </span>
           </div>
 
-          <div className="flex min-w-0 shrink items-center gap-2 overflow-x-auto overflow-y-hidden">
+          <div className="flex min-w-0 shrink items-center gap-2">
             <ThemeToggle />
             {!loading && (
               <IdentitySwitcher
