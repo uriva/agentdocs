@@ -16,7 +16,7 @@ or any other domain metadata.
 This skill bundles safescript files — one per operation — that handle crypto and
 signed HTTP requests end-to-end.
 
-API base URL: `https://agentdocs-api.uriva.deno.net` safescript language:
+API base URL: `https://agentdocs.uriv.me` safescript language:
 https://safescript.dev
 
 ## Step 1 — Get an identity from the user
@@ -200,7 +200,7 @@ Your agent filters locally (substring, embeddings, LLM ranking, etc.).
 
 All scripts:
 
-- `hosts`: `agentdocs-api.uriva.deno.net`
+- `hosts`: `agentdocs.uriv.me`
 - `env`: `timestamp` (all), `randomBytes` (create/share grant flows)
 
 ## What scripts do not cover

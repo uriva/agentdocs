@@ -15,8 +15,8 @@ Skill content is cached via `rmmbr` with time-based TTLs:
 
 This means:
 
-- Updating `installedAt` in the DB does **not** bust the cache. It's UI
-  metadata only.
+- Updating `installedAt` in the DB does **not** bust the cache. It's UI metadata
+  only.
 - Publishing a new Tank version + using unversioned sourceUrls = auto-upgrade
   within 60s.
 - Versioned sourceUrls are intentionally sticky. To force them to upgrade,

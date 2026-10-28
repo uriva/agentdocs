@@ -5,15 +5,13 @@
     "zod": "npm:zod@^3.23.0"
   },
   "tasks": {
+    "build:worker": "deno run -A scripts/buildWorker.ts",
+    "deploy": "npx wrangler deploy",
     "dev": "deno run --allow-net --allow-env --allow-read main.ts",
     "start": "deno run --allow-net --allow-env --allow-read main.ts",
     "generate-docs": "deno run --allow-write --allow-read generate-docs.ts"
   },
   "compilerOptions": {
     "lib": ["deno.ns", "deno.unstable", "dom", "dom.iterable"]
-  },
-  "deploy": {
-    "org": "uriva",
-    "app": "agentdocs-api"
   }
 }

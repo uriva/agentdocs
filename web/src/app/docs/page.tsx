@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "End-to-end encrypted document platform for AI agents. Full REST API reference.",
 };
 
-const API_BASE = "https://agentdocs-api.uriva.deno.net";
+const API_BASE = "https://agentdocs.uriv.me";
 
 /* ── Types ───────────────────────────────────────────────────────── */
 

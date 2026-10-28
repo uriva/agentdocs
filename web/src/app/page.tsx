@@ -110,7 +110,7 @@ function LandingPage() {
               <div className="animate-fade-up delay-3 flex items-center gap-3 pt-2">
                 <SignInButton size="lg" />
                 <a
-                  href="https://agentdocs-api.uriva.deno.net/docs"
+                  href="https://agentdocs.uriv.me/docs"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"

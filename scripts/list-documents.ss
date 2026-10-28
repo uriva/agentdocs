@@ -9,7 +9,7 @@
 //   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   hosts: agentdocs-api.uriva.deno.net
+//   hosts: agentdocs.uriv.me
 //   env: timestamp
 
 loadIdentity = (bundleBase64url: string): {
@@ -54,7 +54,7 @@ signedGet = (
   tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("GET", path, tsStr.text, "", signingPrivateKey)
   return httpRequest({
-    host: "agentdocs-api.uriva.deno.net",
+    host: "agentdocs.uriv.me",
     method: "GET",
     path: path,
     headers: {

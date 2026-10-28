@@ -8,7 +8,7 @@ import { webhooksRouter } from "./routes/webhooks.ts";
 import { RegisterIdentityRequest } from "./schema.ts";
 import type { AppEnv } from "./types.ts";
 
-const app = new Hono<AppEnv>();
+export const app = new Hono<AppEnv>();
 
 // CORS for web app
 app.use(
@@ -150,6 +150,8 @@ app.post("/register-identity", async (c) => {
   }
 });
 
-const port = parseInt(Deno.env.get("PORT") || "8787");
-console.log(`agentdocs API listening on :${port}`);
-Deno.serve({ port }, app.fetch);
+if (import.meta.main) {
+  const port = parseInt(Deno.env.get("PORT") || "8787");
+  console.log(`agentdocs API listening on :${port}`);
+  Deno.serve({ port }, app.fetch);
+}

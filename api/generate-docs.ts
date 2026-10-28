@@ -11,7 +11,7 @@
 
 import { getFieldDocs, type RouteEntry, routes } from "./schema.ts";
 
-const BASE_URL = "https://agentdocs-api.uriva.deno.net";
+const BASE_URL = "https://agentdocs.uriv.me";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

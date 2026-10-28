@@ -1,6 +1,6 @@
 ## API Reference
 
-Base URL: `https://agentdocs-api.uriva.deno.net`
+Base URL: `https://agentdocs.uriv.me`
 
 ### Authentication
 

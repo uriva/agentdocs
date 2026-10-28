@@ -24,4 +24,5 @@ Rules:
 - `kind` MUST be `"contact"`.
 - `title` is the contact's name or display name.
 - `content` can contain freeform markdown notes about the contact.
-- `contactDetails` holds the structured contact fields previously handled by the DB.
+- `contactDetails` holds the structured contact fields previously handled by the
+  DB.

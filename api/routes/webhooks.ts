@@ -51,6 +51,14 @@ async function signPayload(secret: string, payload: string): Promise<string> {
  * Fire webhooks for a resource event. Non-blocking — errors are caught and
  * recorded but never propagated to the caller.
  */
+const pendingWebhooks = new Set<Promise<void>>();
+
+export const waitWebhooks = async () => {
+  while (pendingWebhooks.size > 0) {
+    await Promise.allSettled([...pendingWebhooks]);
+  }
+};
+
 export function fireWebhooks(
   resourceType: "document",
   resourceId: string,
@@ -58,8 +66,7 @@ export function fireWebhooks(
   actorIdentityId: string,
   data?: Record<string, unknown>,
 ): void {
-  // Run in background — don't block the response
-  (async () => {
+  const task = (async () => {
     try {
       const hooks = await getWebhooksForResource(resourceType, resourceId);
 
@@ -103,6 +110,8 @@ export function fireWebhooks(
       console.error("fireWebhooks error:", err);
     }
   })();
+  pendingWebhooks.add(task);
+  task.finally(() => pendingWebhooks.delete(task));
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

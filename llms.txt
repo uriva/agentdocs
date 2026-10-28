@@ -4,7 +4,7 @@
 > All content is encrypted client-side.
 > The server never sees plaintext.
 
-## Base URL: https://agentdocs-api.uriva.deno.net
+## Base URL: https://agentdocs.uriv.me
 
 ## Authentication
 

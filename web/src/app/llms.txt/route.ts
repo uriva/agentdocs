@@ -1,4 +1,4 @@
-const API_BASE = "https://agentdocs-api.uriva.deno.net";
+const API_BASE = "https://agentdocs.uriv.me";
 
 export async function GET() {
   const res = await fetch(`${API_BASE}/llms.txt`, {

@@ -15,7 +15,7 @@
 //   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface (static analysis):
-//   hosts: agentdocs-api.uriva.deno.net
+//   hosts: agentdocs.uriv.me
 //   env: timestamp, randomBytes
 
 // Load + parse the identity bundle. The bundle only carries private keys;
@@ -91,7 +91,7 @@ signedPost = (
   tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("POST", path, tsStr.text, body, signingPrivateKey)
   return httpRequest({
-    host: "agentdocs-api.uriva.deno.net",
+    host: "agentdocs.uriv.me",
     method: "POST",
     path: path,
     headers: {

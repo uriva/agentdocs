@@ -6,7 +6,7 @@
 //   agentdocsIdentity -- base64url-encoded identity bundle (regular input)
 //
 // Permission surface:
-//   hosts: agentdocs-api.uriva.deno.net
+//   hosts: agentdocs.uriv.me
 //   env: timestamp
 
 loadIdentity = (bundleBase64url: string): {
@@ -51,7 +51,7 @@ signedDelete = (
   tsStr = jsonStringify({ value: t.timestamp })
   sig = buildAuthSignature("DELETE", path, tsStr.text, "", signingPrivateKey)
   return httpRequest({
-    host: "agentdocs-api.uriva.deno.net",
+    host: "agentdocs.uriv.me",
     method: "DELETE",
     path: path,
     headers: {

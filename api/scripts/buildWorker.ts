@@ -1,0 +1,195 @@
+const distDir = new URL("../dist", import.meta.url).pathname;
+await Deno.mkdir(distDir, { recursive: true });
+
+const workerOut = `${distDir}/worker.js`;
+
+const cmd = new Deno.Command("deno", {
+  args: [
+    "bundle",
+    "--minify",
+    "--platform",
+    "browser",
+    "--external",
+    "cloudflare:workers",
+    "--external",
+    "node:*",
+    "-o",
+    workerOut,
+    "worker.ts",
+  ],
+  stdout: "inherit",
+  stderr: "inherit",
+});
+
+const status = await cmd.output();
+if (!status.success) {
+  Deno.exit(status.code);
+}
+
+const rawCode = await Deno.readTextFile(workerOut);
+
+const nodeBuiltins = new Set([
+  "assert",
+  "assert/strict",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "dns/promises",
+  "domain",
+  "events",
+  "fs",
+  "fs/promises",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "path/posix",
+  "path/win32",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "repl",
+  "stream",
+  "stream/consumers",
+  "stream/promises",
+  "stream/web",
+  "string_decoder",
+  "sys",
+  "timers",
+  "timers/promises",
+  "tls",
+  "tty",
+  "url",
+  "util",
+  "util/types",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib",
+]);
+
+const header = `import { env as __cf_env } from "cloudflare:workers";
+import { createRequire as __cf_createRequire } from "node:module";
+const __cf_require = __cf_createRequire("file:///worker.js");
+globalThis.__dirname = "/";
+globalThis.__filename = "/worker.js";
+if (typeof globalThis.process === "undefined") {
+  globalThis.process = { env: {} };
+}
+globalThis.process.env ??= {};
+if (__cf_env && typeof __cf_env === "object") {
+  for (const [k, v] of Object.entries(__cf_env)) {
+    if (typeof v === "string") globalThis.process.env[k] = v;
+  }
+}
+const __cf_safe_require = function(spec) {
+  if (spec === "node:process" || spec === "process") return globalThis.process;
+  try {
+    const mod = __cf_require(spec);
+    return mod ?? {};
+  } catch (_err) {
+    return {};
+  }
+};
+globalThis.require = __cf_safe_require;
+globalThis.__cf_safe_require = __cf_safe_require;
+if (typeof globalThis.addEventListener === "undefined") {
+  globalThis.addEventListener = () => {};
+}
+if (typeof globalThis.fetch === "function") {
+  globalThis.fetch = globalThis.fetch.bind(globalThis);
+}
+if (typeof globalThis.clearTimeout === "function") {
+  globalThis.clearTimeout = globalThis.clearTimeout.bind(globalThis);
+}
+if (typeof globalThis.clearInterval === "function") {
+  globalThis.clearInterval = globalThis.clearInterval.bind(globalThis);
+}
+if (typeof globalThis.Deno === "undefined") {
+  globalThis.Deno = {
+    env: {
+      get(key) {
+        return globalThis.process?.env?.[key] ?? __cf_env?.[key];
+      },
+      set(key, value) {
+        if (globalThis.process?.env) globalThis.process.env[key] = String(value);
+      },
+      delete(key) {
+        if (globalThis.process?.env) delete globalThis.process.env[key];
+      },
+      has(key) {
+        return (globalThis.process?.env?.[key] ?? __cf_env?.[key]) !== undefined;
+      },
+      toObject() {
+        return { ...(__cf_env || {}), ...(globalThis.process?.env || {}) };
+      },
+    },
+    args: [],
+    version: { deno: "2.0.0", v8: "0.0.0", typescript: "5.0.0" },
+    build: {
+      target: "x86_64-unknown-linux-gnu",
+      arch: "x86_64",
+      os: "linux",
+      vendor: "unknown",
+      env: "gnu",
+    },
+    errors: {
+      NotFound: class NotFound extends Error {},
+      AlreadyExists: class AlreadyExists extends Error {},
+      PermissionDenied: class PermissionDenied extends Error {},
+    },
+    permissions: {
+      querySync: () => ({ state: "granted" }),
+      query: async () => ({ state: "granted" }),
+    },
+    serve: () => ({ finished: new Promise(() => {}) }),
+    cron: () => {},
+    readFile: async () => new Uint8Array(),
+    readTextFile: async () => "",
+    readTextFileSync: () => "",
+    writeFile: async () => {},
+    writeTextFile: async () => {},
+    mkdir: async () => {},
+    remove: async () => {},
+    stat: async () => ({ isFile: false, isDirectory: false }),
+    exit: (code) => {
+      throw new Error("Deno.exit(" + code + ")");
+    },
+  };
+}
+`;
+
+const patchedCode = header + "\n" +
+  rawCode
+    .replaceAll(/![a-zA-Z0-9_$]+\.jitless/g, "false")
+    .replaceAll("window.fetch", "globalThis.fetch")
+    .replaceAll('typeof window<"u"&&!!window', "true")
+    .replace(
+      /\bfrom\s*["']([^"']+)["']/g,
+      (match, spec) => nodeBuiltins.has(spec) ? `from "node:${spec}"` : match,
+    )
+    .replace(
+      /throw Error\(`Dynamic require of "\$\{[a-zA-Z0-9_$]+\}" is not supported`\)/g,
+      "return globalThis.__cf_safe_require(arguments[0])",
+    );
+
+await Deno.writeTextFile(workerOut, patchedCode);
+console.log(
+  `Successfully built and patched ${workerOut} for Cloudflare Workers (${
+    Math.round(patchedCode.length / 1024)
+  } KB)`,
+);

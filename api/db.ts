@@ -1,8 +1,8 @@
 // Database operations for the Deno API.
 // Uses InstantDB Admin SDK to read/write data.
 
-const INSTANT_APP_ID = Deno.env.get("INSTANT_APP_ID") || "";
-const INSTANT_ADMIN_TOKEN = Deno.env.get("INSTANT_ADMIN_TOKEN") || "";
+const getInstantAppId = () => Deno.env.get("INSTANT_APP_ID") || "";
+const getInstantAdminToken = () => Deno.env.get("INSTANT_ADMIN_TOKEN") || "";
 
 const INSTANT_API = "https://api.instantdb.com/admin";
 
@@ -28,8 +28,8 @@ async function query(q: InstantQuery): Promise<Record<string, unknown[]>> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${INSTANT_ADMIN_TOKEN}`,
-      "app-id": INSTANT_APP_ID,
+      Authorization: `Bearer ${getInstantAdminToken()}`,
+      "app-id": getInstantAppId(),
     },
     body: JSON.stringify({ query: q }),
   });
@@ -49,8 +49,8 @@ async function transact(steps: unknown[]): Promise<unknown> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${INSTANT_ADMIN_TOKEN}`,
-      "app-id": INSTANT_APP_ID,
+      Authorization: `Bearer ${getInstantAdminToken()}`,
+      "app-id": getInstantAppId(),
     },
     body: JSON.stringify({ steps }),
   });
